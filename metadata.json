@@ -1,0 +1,6 @@
+{
+  "name": "Personal Finance Platform",
+  "description": "Multi-user personal finance management platform with secure authentication, income and expense tracking, interactive budget and savings cards, and financial analytics.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

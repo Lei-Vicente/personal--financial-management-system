@@ -1,0 +1,359 @@
+@import "tailwindcss";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+@layer base {
+  :root {
+    --bg-main: #F5F5F3;
+    --bg-surface: #FFFFFF;
+    --bg-subtle: #EBEBE7;
+    --border-color: #D9D9D4;
+    --text-primary: #111111;
+    --text-secondary: #6B6B67;
+    color-scheme: light;
+  }
+
+  .dark {
+    --bg-main: #121212;
+    --bg-surface: #1E1E1E;
+    --bg-subtle: #2A2A28;
+    --border-color: #333330;
+    --text-primary: #F5F5F3;
+    --text-secondary: #A1A19D;
+    color-scheme: dark;
+  }
+
+  body {
+    font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+    color: var(--text-primary);
+    background-color: var(--bg-main);
+    -webkit-font-smoothing: antialiased;
+  }
+}
+
+/* ==========================================================================
+   Comprehensive Dark Mode Palette Overrides for Tailwind Utility Classes
+   ========================================================================== */
+
+/* 1. Surfaces & Backgrounds */
+.dark .bg-\[\#FFFFFF\],
+.dark .bg-white {
+  background-color: #1E1E1E !important;
+}
+
+.dark .bg-\[\#FFFFFF\]\/95,
+.dark .bg-white\/95 {
+  background-color: rgba(30, 30, 30, 0.95) !important;
+}
+
+.dark .bg-\[\#FFFFFF\]\/80,
+.dark .bg-white\/80 {
+  background-color: rgba(30, 30, 30, 0.8) !important;
+}
+
+.dark .bg-\[\#F5F5F3\] {
+  background-color: #121212 !important;
+}
+
+.dark .bg-\[\#EBEBE7\] {
+  background-color: #2A2A28 !important;
+}
+
+.dark .bg-\[\#EBEBE7\]\/80 {
+  background-color: rgba(42, 42, 40, 0.8) !important;
+}
+
+.dark .bg-\[\#EBEBE7\]\/70 {
+  background-color: rgba(42, 42, 40, 0.7) !important;
+}
+
+.dark .bg-\[\#EBEBE7\]\/60 {
+  background-color: rgba(42, 42, 40, 0.6) !important;
+}
+
+.dark .bg-\[\#EBEBE7\]\/50 {
+  background-color: rgba(42, 42, 40, 0.5) !important;
+}
+
+.dark .bg-\[\#EBEBE7\]\/40 {
+  background-color: rgba(42, 42, 40, 0.4) !important;
+}
+
+.dark .bg-gray-50 {
+  background-color: #1A1A18 !important;
+}
+
+.dark .bg-gray-100 {
+  background-color: #242422 !important;
+}
+
+/* Status Alert, Tag, and Pill Tint Backgrounds */
+.dark .bg-green-50,
+.dark .bg-emerald-50 {
+  background-color: rgba(21, 128, 61, 0.2) !important;
+}
+
+.dark .bg-red-50 {
+  background-color: rgba(185, 28, 28, 0.2) !important;
+}
+
+.dark .bg-amber-50 {
+  background-color: rgba(180, 83, 9, 0.2) !important;
+}
+
+.dark .bg-blue-50 {
+  background-color: rgba(37, 99, 235, 0.2) !important;
+}
+
+/* 2. Interactive Hover States */
+.dark .hover\:bg-\[\#EBEBE7\]:hover {
+  background-color: #2A2A28 !important;
+}
+
+.dark .hover\:bg-\[\#EBEBE7\]\/70:hover {
+  background-color: rgba(42, 42, 40, 0.7) !important;
+}
+
+.dark .hover\:bg-\[\#EBEBE7\]\/60:hover {
+  background-color: rgba(42, 42, 40, 0.6) !important;
+}
+
+.dark .hover\:bg-\[\#EBEBE7\]\/40:hover {
+  background-color: rgba(42, 42, 40, 0.4) !important;
+}
+
+.dark .hover\:bg-\[\#D9D9D4\]:hover {
+  background-color: #383835 !important;
+}
+
+.dark .hover\:bg-\[\#FFFFFF\]:hover,
+.dark .hover\:bg-white:hover {
+  background-color: #262624 !important;
+}
+
+.dark .hover\:bg-gray-50:hover {
+  background-color: #222220 !important;
+}
+
+.dark .hover\:bg-red-50:hover {
+  background-color: rgba(185, 28, 28, 0.3) !important;
+}
+
+/* 3. Typography & Text Colors */
+.dark .text-\[\#111111\] {
+  color: #F5F5F3 !important;
+}
+
+.dark .hover\:text-\[\#111111\]:hover {
+  color: #FFFFFF !important;
+}
+
+.dark .text-\[\#6B6B67\] {
+  color: #A1A19D !important;
+}
+
+.dark .hover\:text-\[\#6B6B67\]:hover {
+  color: #C2C2BE !important;
+}
+
+.dark .text-gray-700,
+.dark .text-slate-700 {
+  color: #D1D1CD !important;
+}
+
+/* Financial Stat & Status text with enhanced dark contrast */
+.dark .text-\[\#15803D\],
+.dark .hover\:text-\[\#15803D\]:hover {
+  color: #4ADE80 !important;
+}
+
+.dark .text-\[\#B91C1C\],
+.dark .hover\:text-\[\#B91C1C\]:hover {
+  color: #F87171 !important;
+}
+
+.dark .text-\[\#B45309\] {
+  color: #FBBF24 !important;
+}
+
+.dark .text-\[\#EA580C\] {
+  color: #FB923C !important;
+}
+
+.dark .text-\[\#2563EB\],
+.dark .hover\:text-\[\#2563EB\]:hover {
+  color: #60A5FA !important;
+}
+
+/* 4. Borders and Dividers */
+.dark .border-\[\#D9D9D4\] {
+  border-color: #333330 !important;
+}
+
+.dark .border-\[\#D9D9D4\]\/80 {
+  border-color: rgba(51, 51, 48, 0.8) !important;
+}
+
+.dark .border-\[\#D9D9D4\]\/60 {
+  border-color: rgba(51, 51, 48, 0.6) !important;
+}
+
+.dark .border-\[\#D9D9D4\]\/50 {
+  border-color: rgba(51, 51, 48, 0.5) !important;
+}
+
+.dark .border-\[\#D9D9D4\]\/40 {
+  border-color: rgba(51, 51, 48, 0.4) !important;
+}
+
+.dark .border-\[\#D9D9D4\]\/30 {
+  border-color: rgba(51, 51, 48, 0.3) !important;
+}
+
+.dark .border-\[\#D9D9D4\]\/20 {
+  border-color: rgba(51, 51, 48, 0.2) !important;
+}
+
+.dark .border-gray-200 {
+  border-color: #333330 !important;
+}
+
+.dark .border-green-200,
+.dark .border-emerald-200 {
+  border-color: rgba(74, 222, 128, 0.3) !important;
+}
+
+.dark .border-red-200 {
+  border-color: rgba(248, 113, 113, 0.3) !important;
+}
+
+.dark .border-amber-200 {
+  border-color: rgba(251, 191, 36, 0.3) !important;
+}
+
+.dark .border-blue-200 {
+  border-color: rgba(96, 165, 250, 0.3) !important;
+}
+
+.dark .hover\:border-\[\#111111\]\/40:hover {
+  border-color: rgba(245, 245, 243, 0.35) !important;
+}
+
+.dark .hover\:border-\[\#111111\]:hover {
+  border-color: #F5F5F3 !important;
+}
+
+.dark .hover\:border-\[\#15803D\]:hover {
+  border-color: #4ADE80 !important;
+}
+
+/* 5. Inputs, Selects, and Textareas */
+.dark input:not([type="checkbox"]):not([type="radio"]),
+.dark select,
+.dark textarea {
+  background-color: #222220 !important;
+  color: #F5F5F3 !important;
+  border-color: #383835 !important;
+  color-scheme: dark !important;
+}
+
+.dark input:disabled,
+.dark textarea:disabled,
+.dark select:disabled {
+  background-color: #181816 !important;
+  color: #7A7A75 !important;
+  border-color: #2C2C29 !important;
+}
+
+.dark select option {
+  background-color: #222220 !important;
+  color: #F5F5F3 !important;
+}
+
+.dark input::placeholder,
+.dark textarea::placeholder {
+  color: #8E8E89 !important;
+}
+
+/* 6. Primary Action Buttons in Dark Canvas */
+.dark button.bg-\[\#111111\]:not([data-theme-toggle] *):not([data-theme-toggle]):not(#theme-toggle-btn *):not(#mobile-drawer-theme-toggle *) {
+  background-color: #262624 !important;
+  border: 1px solid #3E3E3A;
+  color: #FFFFFF !important;
+}
+
+.dark button.bg-\[\#111111\]:hover:not([data-theme-toggle] *):not([data-theme-toggle]):not(#theme-toggle-btn *):not(#mobile-drawer-theme-toggle *) {
+  background-color: #333330 !important;
+  border-color: #4E4E4A;
+}
+
+
+.dark button.hover\:bg-\[\#2563EB\]:hover {
+  background-color: #2563EB !important;
+  border-color: #2563EB !important;
+}
+
+.dark button.hover\:bg-\[\#B91C1C\]:hover {
+  background-color: #DC2626 !important;
+  border-color: #DC2626 !important;
+}
+
+.dark button.hover\:bg-\[\#15803D\]:hover {
+  background-color: #16A34A !important;
+  border-color: #16A34A !important;
+}
+
+/* 7. Spending Chart Bars & Highlights */
+.dark .bg-\[\#15803D\] {
+  background-color: #16A34A !important;
+}
+
+.dark .bg-\[\#15803D\]\/70 {
+  background-color: rgba(34, 197, 94, 0.7) !important;
+}
+
+.dark .bg-\[\#B91C1C\] {
+  background-color: #DC2626 !important;
+}
+
+.dark .bg-\[\#B91C1C\]\/70 {
+  background-color: rgba(239, 68, 68, 0.7) !important;
+}
+
+/* 8. Table Elements */
+.dark table thead th {
+  background-color: #242422 !important;
+  color: #A1A19D !important;
+  border-color: #333330 !important;
+}
+
+.dark table tbody tr {
+  border-color: #333330 !important;
+}
+
+.dark table tbody tr:hover {
+  background-color: rgba(42, 42, 40, 0.5) !important;
+}
+
+/* 9. Sleek Scrollbars in Dark Mode */
+.dark ::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+.dark ::-webkit-scrollbar-track {
+  background: #141414;
+}
+
+.dark ::-webkit-scrollbar-thumb {
+  background: #333330;
+  border-radius: 9999px;
+}
+
+.dark ::-webkit-scrollbar-thumb:hover {
+  background: #4A4A46;
+}
+
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+}
