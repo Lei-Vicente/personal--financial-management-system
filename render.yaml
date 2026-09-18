@@ -1,0 +1,23 @@
+services:
+  - type: web
+    name: finance-management-system
+    runtime: node
+    plan: starter
+    buildCommand: npm ci && npm run build
+    startCommand: npm start
+    healthCheckPath: /api/health
+    disk:
+      name: finance-data
+      mountPath: /var/data
+      sizeGB: 1
+    envVars:
+      - key: NODE_VERSION
+        value: 22.22.0
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        value: /var/data/finance.db
+      - key: AUTH_SECRET
+        generateValue: true
+      - key: SESSION_TTL_DAYS
+        value: 7
