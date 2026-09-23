@@ -7,9 +7,9 @@ import { hashPassword, verifyPassword, createSession, invalidateSession } from '
 let passedCount = 0;
 let failedCount = 0;
 
-function test(name: string, fn: () => void | Promise<void>) {
+async function test(name: string, fn: () => void | Promise<void>) {
   try {
-    fn();
+    await fn();
     console.log(`  ✓ ${name}`);
     passedCount++;
   } catch (err: any) {
@@ -36,7 +36,7 @@ async function runTests() {
   // -------------------------------------------------------------
   console.log('1. Authentication & Cryptography Tests:');
 
-  test('Password hashing produces unique salted hashes for same password', () => {
+  await test('Password hashing produces unique salted hashes for same password', () => {
     const rawPw = 'SecurePassword123!';
     const hash1 = hashPassword(rawPw);
     const hash2 = hashPassword(rawPw);
@@ -47,7 +47,7 @@ async function runTests() {
     assert.strictEqual(verifyPassword('WrongPassword123!', hash1), false, 'Wrong password must fail');
   });
 
-  test('User creation & default category seeding', () => {
+  await test('User creation & default category seeding', async () => {
     const pwHash1 = hashPassword('PassUser1!');
     const pwHash2 = hashPassword('PassUser2!');
 
@@ -61,8 +61,8 @@ async function runTests() {
       VALUES (?, ?, ?, 'Test User 2', 1, ?, ?)
     `).run(user2Id, user2Email, pwHash2, now, now);
 
-    seedDefaultCategories(user1Id);
-    seedDefaultCategories(user2Id);
+    await seedDefaultCategories(user1Id);
+    await seedDefaultCategories(user2Id);
 
     const user1Cats = db.prepare('SELECT id, name FROM categories WHERE user_id = ?').all(user1Id) as any[];
     const user2Cats = db.prepare('SELECT id, name FROM categories WHERE user_id = ?').all(user2Id) as any[];
@@ -72,7 +72,7 @@ async function runTests() {
     assert.notStrictEqual(user1Cats[0].id, user2Cats[0].id, 'Category IDs must belong strictly to respective users');
   });
 
-  test('Duplicate email registration is rejected by unique constraint', () => {
+  await test('Duplicate email registration is rejected by unique constraint', () => {
     assert.throws(() => {
       db.prepare(`
         INSERT INTO users (id, email, password_hash, full_name, is_verified, created_at, updated_at)
@@ -207,15 +207,15 @@ async function runTests() {
   // -------------------------------------------------------------
   console.log('\n4. Session Management Tests:');
 
-  test('Session creation, validation, and revocation', () => {
+  await test('Session creation, validation, and revocation', async () => {
     const dummyReq: any = { headers: { 'user-agent': 'TestRunner/1.0' }, ip: '127.0.0.1', socket: {} };
-    const { token } = createSession(user1Id, dummyReq);
+    const { token } = await createSession(user1Id, dummyReq);
 
     const sessionRow = db.prepare('SELECT * FROM sessions WHERE token = ?').get(token) as any;
     assert(sessionRow, 'Session must exist in database');
     assert.strictEqual(sessionRow.user_id, user1Id);
 
-    invalidateSession(token);
+    await invalidateSession(token);
     const expiredRow = db.prepare('SELECT * FROM sessions WHERE token = ?').get(token);
     assert.strictEqual(expiredRow, undefined, 'Session must be removed upon invalidation');
   });

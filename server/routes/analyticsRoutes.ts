@@ -5,7 +5,7 @@ import { requireAuth, AuthRequest } from '../auth.ts';
 export const analyticsRouter = Router();
 analyticsRouter.use(requireAuth);
 
-export const handleDashboardAnalytics = (req: AuthRequest, res: Response) => {
+export const handleDashboardAnalytics = async (req: AuthRequest, res: Response) => {
   try {
     const userId = req.user!.id;
     const today = new Date();
@@ -20,7 +20,7 @@ export const handleDashboardAnalytics = (req: AuthRequest, res: Response) => {
     const prevMonthStr = `${prevYear}-${String(prevMonthNum).padStart(2, '0')}`;
 
     // 1. Total all-time balance
-    const allTimeRow = db.prepare(`
+    const allTimeRow = await db.prepare(`
       SELECT
         COALESCE(SUM(CASE WHEN type = 'INCOME' THEN amount ELSE 0 END), 0) as total_income,
         COALESCE(SUM(CASE WHEN type = 'EXPENSE' THEN amount ELSE 0 END), 0) as total_expense
@@ -31,7 +31,7 @@ export const handleDashboardAnalytics = (req: AuthRequest, res: Response) => {
     const allTimeBalance = (allTimeRow.total_income || 0) - (allTimeRow.total_expense || 0);
 
     // 2. Current month totals
-    const curMonthRow = db.prepare(`
+    const curMonthRow = await db.prepare(`
       SELECT
         COALESCE(SUM(CASE WHEN type = 'INCOME' THEN amount ELSE 0 END), 0) as income,
         COALESCE(SUM(CASE WHEN type = 'EXPENSE' THEN amount ELSE 0 END), 0) as expense
@@ -44,7 +44,7 @@ export const handleDashboardAnalytics = (req: AuthRequest, res: Response) => {
     const curNet = curIncome - curExpense;
 
     // 3. Previous month totals
-    const prevMonthRow = db.prepare(`
+    const prevMonthRow = await db.prepare(`
       SELECT
         COALESCE(SUM(CASE WHEN type = 'INCOME' THEN amount ELSE 0 END), 0) as income,
         COALESCE(SUM(CASE WHEN type = 'EXPENSE' THEN amount ELSE 0 END), 0) as expense
@@ -62,23 +62,23 @@ export const handleDashboardAnalytics = (req: AuthRequest, res: Response) => {
     const balanceChangePct = prevNet !== 0 ? Math.round(((curNet - prevNet) / Math.abs(prevNet)) * 100 * 10) / 10 : 0;
 
     // 4. Largest expense category this month
-    const largestCatRow = db.prepare(`
+    const largestCatRow = await db.prepare(`
       SELECT c.name, c.color, c.icon, SUM(t.amount) as total
       FROM transactions t
       JOIN categories c ON t.category_id = c.id
       WHERE t.user_id = ? AND t.type = 'EXPENSE' AND t.date >= ? AND t.date <= ?
-      GROUP BY c.id
+      GROUP BY c.id, c.name, c.color, c.icon
       ORDER BY total DESC
       LIMIT 1
     `).get(userId, `${curMonthStr}-01`, `${curMonthStr}-31`) as any;
 
     // 5. Category breakdown for current month
-    const categoryBreakdown = db.prepare(`
+    const categoryBreakdown = await db.prepare(`
       SELECT c.id, c.name, c.color, c.icon, SUM(t.amount) as total, COUNT(t.id) as count
       FROM transactions t
       JOIN categories c ON t.category_id = c.id
       WHERE t.user_id = ? AND t.type = 'EXPENSE' AND t.date >= ? AND t.date <= ?
-      GROUP BY c.id
+      GROUP BY c.id, c.name, c.color, c.icon
       ORDER BY total DESC
     `).all(userId, `${curMonthStr}-01`, `${curMonthStr}-31`) as any[];
 
@@ -121,7 +121,7 @@ export const handleDashboardAnalytics = (req: AuthRequest, res: Response) => {
 analyticsRouter.get('/dashboard', handleDashboardAnalytics);
 
 // GET /api/analytics - general analytics with date range support (e.g. from=YYYY-MM-DD&to=YYYY-MM-DD)
-analyticsRouter.get('/', (req: AuthRequest, res: Response) => {
+analyticsRouter.get('/', async (req: AuthRequest, res: Response) => {
   try {
     const userId = req.user!.id;
     const { from, to } = req.query;
@@ -130,7 +130,7 @@ analyticsRouter.get('/', (req: AuthRequest, res: Response) => {
     let endDate = to ? String(to) : new Date().toISOString().split('T')[0];
 
     // Summary totals in range
-    const totals = db.prepare(`
+    const totals = await db.prepare(`
       SELECT
         COALESCE(SUM(CASE WHEN type = 'INCOME' THEN amount ELSE 0 END), 0) as total_income,
         COALESCE(SUM(CASE WHEN type = 'EXPENSE' THEN amount ELSE 0 END), 0) as total_expense,
@@ -144,17 +144,17 @@ analyticsRouter.get('/', (req: AuthRequest, res: Response) => {
     const netCashFlow = totalIncome - totalExpense;
 
     // Spending by category
-    const categoryBreakdown = db.prepare(`
+    const categoryBreakdown = await db.prepare(`
       SELECT c.id, c.name, c.color, c.icon, SUM(t.amount) as total, COUNT(t.id) as count
       FROM transactions t
       JOIN categories c ON t.category_id = c.id
       WHERE t.user_id = ? AND t.type = 'EXPENSE' AND t.date >= ? AND t.date <= ?
-      GROUP BY c.id
+      GROUP BY c.id, c.name, c.color, c.icon
       ORDER BY total DESC
     `).all(userId, startDate, endDate) as any[];
 
     // Top 5 largest expenses
-    const largestExpenses = db.prepare(`
+    const largestExpenses = await db.prepare(`
       SELECT t.id, t.amount, t.description, t.date, t.payment_method, c.name as category_name, c.color as category_color
       FROM transactions t
       JOIN categories c ON t.category_id = c.id
@@ -185,7 +185,7 @@ analyticsRouter.get('/', (req: AuthRequest, res: Response) => {
 });
 
 // GET /api/analytics/spending-overview?range=daily|weekly|monthly|yearly
-analyticsRouter.get('/spending-overview', (req: AuthRequest, res: Response) => {
+analyticsRouter.get('/spending-overview', async (req: AuthRequest, res: Response) => {
   try {
     const userId = req.user!.id;
     const range = (req.query.range as string) || 'monthly';
@@ -201,7 +201,7 @@ analyticsRouter.get('/spending-overview', (req: AuthRequest, res: Response) => {
         const dateStr = d.toISOString().split('T')[0];
         const label = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 
-        const row = db.prepare(`
+        const row = await db.prepare(`
           SELECT
             COALESCE(SUM(CASE WHEN type = 'INCOME' THEN amount ELSE 0 END), 0) as inc,
             COALESCE(SUM(CASE WHEN type = 'EXPENSE' THEN amount ELSE 0 END), 0) as exp
@@ -225,7 +225,7 @@ analyticsRouter.get('/spending-overview', (req: AuthRequest, res: Response) => {
         const eStr = endD.toISOString().split('T')[0];
         const label = `${startD.toLocaleDateString('en-US', { month: 'numeric', day: 'numeric' })} - ${endD.toLocaleDateString('en-US', { month: 'numeric', day: 'numeric' })}`;
 
-        const row = db.prepare(`
+        const row = await db.prepare(`
           SELECT
             COALESCE(SUM(CASE WHEN type = 'INCOME' THEN amount ELSE 0 END), 0) as inc,
             COALESCE(SUM(CASE WHEN type = 'EXPENSE' THEN amount ELSE 0 END), 0) as exp
@@ -244,7 +244,7 @@ analyticsRouter.get('/spending-overview', (req: AuthRequest, res: Response) => {
         const sStr = `${y}-01-01`;
         const eStr = `${y}-12-31`;
 
-        const row = db.prepare(`
+        const row = await db.prepare(`
           SELECT
             COALESCE(SUM(CASE WHEN type = 'INCOME' THEN amount ELSE 0 END), 0) as inc,
             COALESCE(SUM(CASE WHEN type = 'EXPENSE' THEN amount ELSE 0 END), 0) as exp
@@ -265,7 +265,7 @@ analyticsRouter.get('/spending-overview', (req: AuthRequest, res: Response) => {
         const mStr = `${y}-${String(m).padStart(2, '0')}`;
         const label = d.toLocaleDateString('en-US', { month: 'short' });
 
-        const row = db.prepare(`
+        const row = await db.prepare(`
           SELECT
             COALESCE(SUM(CASE WHEN type = 'INCOME' THEN amount ELSE 0 END), 0) as inc,
             COALESCE(SUM(CASE WHEN type = 'EXPENSE' THEN amount ELSE 0 END), 0) as exp

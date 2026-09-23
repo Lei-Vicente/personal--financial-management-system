@@ -39,13 +39,13 @@ export interface AuthRequest extends Request {
   sessionToken?: string;
 }
 
-export function createSession(userId: string, req: Request): { token: string; expiresAt: Date } {
+export async function createSession(userId: string, req: Request): Promise<{ token: string; expiresAt: Date }> {
   const token = crypto.randomBytes(32).toString('hex');
   const expiresAt = new Date(Date.now() + SESSION_TTL_MS);
   const userAgent = req.headers['user-agent'] || 'Unknown';
   const ipAddress = req.ip || req.socket.remoteAddress || '127.0.0.1';
 
-  db.prepare(`
+  await db.prepare(`
     INSERT INTO sessions (id, user_id, token, user_agent, ip_address, expires_at, created_at)
     VALUES (?, ?, ?, ?, ?, ?, ?)
   `).run(
@@ -61,12 +61,12 @@ export function createSession(userId: string, req: Request): { token: string; ex
   return { token, expiresAt };
 }
 
-export function invalidateSession(token: string) {
-  db.prepare('DELETE FROM sessions WHERE token = ?').run(token);
+export async function invalidateSession(token: string) {
+  await db.prepare('DELETE FROM sessions WHERE token = ?').run(token);
 }
 
-export function invalidateAllUserSessions(userId: string) {
-  db.prepare('DELETE FROM sessions WHERE user_id = ?').run(userId);
+export async function invalidateAllUserSessions(userId: string) {
+  await db.prepare('DELETE FROM sessions WHERE user_id = ?').run(userId);
 }
 
 export function extractSessionToken(req: Request): string | null {
@@ -86,39 +86,43 @@ export function extractSessionToken(req: Request): string | null {
   return null;
 }
 
-export function requireAuth(req: AuthRequest, res: Response, next: NextFunction) {
-  const token = extractSessionToken(req);
-  if (!token) {
-    return res.status(401).json({ error: 'Your session has expired or you are not logged in. Please log in.' });
+export async function requireAuth(req: AuthRequest, res: Response, next: NextFunction) {
+  try {
+    const token = extractSessionToken(req);
+    if (!token) {
+      return res.status(401).json({ error: 'Your session has expired or you are not logged in. Please log in.' });
+    }
+
+    const nowIso = new Date().toISOString();
+    const sessionRow = await db.prepare(`
+      SELECT s.id as session_id, s.token, s.expires_at,
+             u.id as user_id, u.email, u.full_name, u.is_verified, u.created_at,
+             st.currency, st.monthly_income, st.timezone, st.onboarding_completed
+      FROM sessions s
+      JOIN users u ON s.user_id = u.id
+      LEFT JOIN user_settings st ON u.id = st.user_id
+      WHERE s.token = ? AND s.expires_at > ?
+    `).get(token, nowIso) as any;
+
+    if (!sessionRow) {
+      return res.status(401).json({ error: 'Invalid or expired session. Please log in again.' });
+    }
+
+    req.sessionToken = token;
+    req.user = {
+      id: sessionRow.user_id,
+      email: sessionRow.email,
+      full_name: sessionRow.full_name,
+      is_verified: Number(sessionRow.is_verified),
+      created_at: sessionRow.created_at,
+      currency: sessionRow.currency || 'PHP',
+      monthly_income: Number(sessionRow.monthly_income || 0),
+      timezone: sessionRow.timezone || 'Asia/Manila',
+      onboarding_completed: Number(sessionRow.onboarding_completed || 0),
+    };
+
+    next();
+  } catch (err) {
+    next(err);
   }
-
-  const nowIso = new Date().toISOString();
-  const sessionRow = db.prepare(`
-    SELECT s.id as session_id, s.token, s.expires_at,
-           u.id as user_id, u.email, u.full_name, u.is_verified, u.created_at,
-           st.currency, st.monthly_income, st.timezone, st.onboarding_completed
-    FROM sessions s
-    JOIN users u ON s.user_id = u.id
-    LEFT JOIN user_settings st ON u.id = st.user_id
-    WHERE s.token = ? AND s.expires_at > ?
-  `).get(token, nowIso) as any;
-
-  if (!sessionRow) {
-    return res.status(401).json({ error: 'Invalid or expired session. Please log in again.' });
-  }
-
-  req.sessionToken = token;
-  req.user = {
-    id: sessionRow.user_id,
-    email: sessionRow.email,
-    full_name: sessionRow.full_name,
-    is_verified: Number(sessionRow.is_verified),
-    created_at: sessionRow.created_at,
-    currency: sessionRow.currency || 'PHP',
-    monthly_income: Number(sessionRow.monthly_income || 0),
-    timezone: sessionRow.timezone || 'Asia/Manila',
-    onboarding_completed: Number(sessionRow.onboarding_completed || 0),
-  };
-
-  next();
 }

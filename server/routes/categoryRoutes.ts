@@ -7,7 +7,7 @@ export const categoryRouter = Router();
 categoryRouter.use(requireAuth);
 
 // GET /api/categories
-categoryRouter.get('/', (req: AuthRequest, res: Response) => {
+categoryRouter.get('/', async (req: AuthRequest, res: Response) => {
   try {
     const userId = req.user!.id;
     const { type } = req.query;
@@ -21,7 +21,7 @@ categoryRouter.get('/', (req: AuthRequest, res: Response) => {
     }
 
     sql += ' ORDER BY is_default DESC, name ASC';
-    const rows = db.prepare(sql).all(...params);
+    const rows = await db.prepare(sql).all(...params);
 
     return res.json({ categories: rows });
   } catch (error: any) {
@@ -30,12 +30,12 @@ categoryRouter.get('/', (req: AuthRequest, res: Response) => {
 });
 
 // GET /api/categories/:id
-categoryRouter.get('/:id', (req: AuthRequest, res: Response) => {
+categoryRouter.get('/:id', async (req: AuthRequest, res: Response) => {
   try {
     const userId = req.user!.id;
     const catId = req.params.id;
 
-    const category = db.prepare('SELECT * FROM categories WHERE id = ? AND user_id = ?').get(catId, userId);
+    const category = await db.prepare('SELECT * FROM categories WHERE id = ? AND user_id = ?').get(catId, userId);
     if (!category) {
       return res.status(404).json({ error: 'Category not found.' });
     }
@@ -47,7 +47,7 @@ categoryRouter.get('/:id', (req: AuthRequest, res: Response) => {
 });
 
 // POST /api/categories
-categoryRouter.post('/', (req: AuthRequest, res: Response) => {
+categoryRouter.post('/', async (req: AuthRequest, res: Response) => {
   try {
     const userId = req.user!.id;
     const { name, type, icon = 'tag', color = '#2563EB' } = req.body;
@@ -61,7 +61,7 @@ categoryRouter.post('/', (req: AuthRequest, res: Response) => {
     }
 
     // Check duplicate name for this user
-    const existing = db.prepare('SELECT id FROM categories WHERE user_id = ? AND LOWER(name) = LOWER(?) AND type = ?')
+    const existing = await db.prepare('SELECT id FROM categories WHERE user_id = ? AND LOWER(name) = LOWER(?) AND type = ?')
       .get(userId, name.trim(), type);
     if (existing) {
       return res.status(409).json({ error: `A category named "${name.trim()}" already exists for ${type.toLowerCase()}.` });
@@ -70,12 +70,12 @@ categoryRouter.post('/', (req: AuthRequest, res: Response) => {
     const id = crypto.randomUUID();
     const now = new Date().toISOString();
 
-    db.prepare(`
+    await db.prepare(`
       INSERT INTO categories (id, user_id, name, type, icon, color, is_default, created_at)
       VALUES (?, ?, ?, ?, ?, ?, 0, ?)
     `).run(id, userId, name.trim(), type, icon || 'tag', color || '#2563EB', now);
 
-    const category = db.prepare('SELECT * FROM categories WHERE id = ?').get(id);
+    const category = await db.prepare('SELECT * FROM categories WHERE id = ?').get(id);
     return res.status(201).json({
       message: 'Category created successfully.',
       category,
@@ -86,12 +86,12 @@ categoryRouter.post('/', (req: AuthRequest, res: Response) => {
 });
 
 // PATCH /api/categories/:id
-categoryRouter.patch('/:id', (req: AuthRequest, res: Response) => {
+categoryRouter.patch('/:id', async (req: AuthRequest, res: Response) => {
   try {
     const userId = req.user!.id;
     const catId = req.params.id;
 
-    const existing = db.prepare('SELECT * FROM categories WHERE id = ? AND user_id = ?').get(catId, userId) as any;
+    const existing = await db.prepare('SELECT * FROM categories WHERE id = ? AND user_id = ?').get(catId, userId) as any;
     if (!existing) {
       return res.status(404).json({ error: 'Category not found.' });
     }
@@ -105,13 +105,13 @@ categoryRouter.patch('/:id', (req: AuthRequest, res: Response) => {
       return res.status(400).json({ error: 'Category name cannot be empty.' });
     }
 
-    db.prepare(`
+    await db.prepare(`
       UPDATE categories
       SET name = ?, icon = ?, color = ?
       WHERE id = ? AND user_id = ?
     `).run(newName, newIcon, newColor, catId, userId);
 
-    const updated = db.prepare('SELECT * FROM categories WHERE id = ?').get(catId);
+    const updated = await db.prepare('SELECT * FROM categories WHERE id = ?').get(catId);
     return res.json({
       message: 'Category updated successfully.',
       category: updated,
@@ -122,25 +122,25 @@ categoryRouter.patch('/:id', (req: AuthRequest, res: Response) => {
 });
 
 // DELETE /api/categories/:id
-categoryRouter.delete('/:id', (req: AuthRequest, res: Response) => {
+categoryRouter.delete('/:id', async (req: AuthRequest, res: Response) => {
   try {
     const userId = req.user!.id;
     const catId = req.params.id;
 
-    const existing = db.prepare('SELECT * FROM categories WHERE id = ? AND user_id = ?').get(catId, userId) as any;
+    const existing = await db.prepare('SELECT * FROM categories WHERE id = ? AND user_id = ?').get(catId, userId) as any;
     if (!existing) {
       return res.status(404).json({ error: 'Category not found.' });
     }
 
     // Check if transactions use this category
-    const countCheck = db.prepare('SELECT COUNT(*) as count FROM transactions WHERE category_id = ? AND user_id = ?').get(catId, userId) as any;
+    const countCheck = await db.prepare('SELECT COUNT(*) as count FROM transactions WHERE category_id = ? AND user_id = ?').get(catId, userId) as any;
     if (countCheck && countCheck.count > 0) {
       return res.status(400).json({
         error: `Cannot delete category: ${countCheck.count} transaction(s) are linked to it. Please reassign or delete those transactions first.`
       });
     }
 
-    db.prepare('DELETE FROM categories WHERE id = ? AND user_id = ?').run(catId, userId);
+    await db.prepare('DELETE FROM categories WHERE id = ? AND user_id = ?').run(catId, userId);
     return res.json({ message: 'Category removed successfully.' });
   } catch (error: any) {
     return res.status(500).json({ error: 'Failed to delete category.' });

@@ -7,7 +7,7 @@ export const transactionRouter = Router();
 transactionRouter.use(requireAuth);
 
 // GET /api/transactions - paginated, searchable, filterable
-transactionRouter.get('/', (req: AuthRequest, res: Response) => {
+transactionRouter.get('/', async (req: AuthRequest, res: Response) => {
   try {
     const userId = req.user!.id;
     const {
@@ -64,7 +64,7 @@ transactionRouter.get('/', (req: AuthRequest, res: Response) => {
       LEFT JOIN categories c ON t.category_id = c.id
       WHERE ${whereClause}
     `;
-    const countResult = db.prepare(countSql).get(...params) as any;
+    const countResult = await db.prepare(countSql).get(...params) as any;
     const total = countResult ? countResult.count : 0;
 
     // Sorting safe whitelist
@@ -89,7 +89,7 @@ transactionRouter.get('/', (req: AuthRequest, res: Response) => {
       ORDER BY ${sortCol} ${direction}, t.created_at DESC
       LIMIT ? OFFSET ?
     `;
-    const rows = db.prepare(dataSql).all(...params, limitNum, offset) as any[];
+    const rows = await db.prepare(dataSql).all(...params, limitNum, offset) as any[];
 
     // Overall summary sums for the current filter scope
     const sumSql = `
@@ -100,7 +100,7 @@ transactionRouter.get('/', (req: AuthRequest, res: Response) => {
       LEFT JOIN categories c ON t.category_id = c.id
       WHERE ${whereClause}
     `;
-    const sumResult = db.prepare(sumSql).get(...params) as any;
+    const sumResult = await db.prepare(sumSql).get(...params) as any;
 
     return res.json({
       transactions: rows,
@@ -123,12 +123,12 @@ transactionRouter.get('/', (req: AuthRequest, res: Response) => {
 });
 
 // GET /api/transactions/:id
-transactionRouter.get('/:id', (req: AuthRequest, res: Response) => {
+transactionRouter.get('/:id', async (req: AuthRequest, res: Response) => {
   try {
     const userId = req.user!.id;
     const transId = req.params.id;
 
-    const row = db.prepare(`
+    const row = await db.prepare(`
       SELECT t.*, c.name as category_name, c.icon as category_icon, c.color as category_color,
              a.name as account_name, a.type as account_type
       FROM transactions t
@@ -148,7 +148,7 @@ transactionRouter.get('/:id', (req: AuthRequest, res: Response) => {
 });
 
 // POST /api/transactions
-transactionRouter.post('/', (req: AuthRequest, res: Response) => {
+transactionRouter.post('/', async (req: AuthRequest, res: Response) => {
   try {
     const userId = req.user!.id;
     const {
@@ -184,7 +184,7 @@ transactionRouter.post('/', (req: AuthRequest, res: Response) => {
     }
 
     // Authoritative verification: Category MUST belong to current user
-    const catCheck = db.prepare('SELECT id, name, icon, color FROM categories WHERE id = ? AND user_id = ?').get(category_id, userId) as any;
+    const catCheck = await db.prepare('SELECT id, name, icon, color FROM categories WHERE id = ? AND user_id = ?').get(category_id, userId) as any;
     if (!catCheck) {
       return res.status(403).json({ error: 'Unauthorized: Category does not belong to your account.' });
     }
@@ -193,7 +193,7 @@ transactionRouter.post('/', (req: AuthRequest, res: Response) => {
     let accId: string | null = null;
     let accName: string | null = null;
     if (account_id) {
-      const accCheck = db.prepare('SELECT id, name FROM accounts WHERE id = ? AND user_id = ?').get(account_id, userId) as any;
+      const accCheck = await db.prepare('SELECT id, name FROM accounts WHERE id = ? AND user_id = ?').get(account_id, userId) as any;
       if (accCheck) {
         accId = accCheck.id;
         accName = accCheck.name;
@@ -203,7 +203,7 @@ transactionRouter.post('/', (req: AuthRequest, res: Response) => {
     const transId = crypto.randomUUID();
     const now = new Date().toISOString();
 
-    db.prepare(`
+    await db.prepare(`
       INSERT INTO transactions (id, user_id, account_id, category_id, type, amount, date, description, payment_method, notes, created_at, updated_at)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).run(
@@ -251,13 +251,13 @@ transactionRouter.post('/', (req: AuthRequest, res: Response) => {
 });
 
 // PATCH /api/transactions/:id
-transactionRouter.patch('/:id', (req: AuthRequest, res: Response) => {
+transactionRouter.patch('/:id', async (req: AuthRequest, res: Response) => {
   try {
     const userId = req.user!.id;
     const transId = req.params.id;
 
     // Check ownership
-    const existing = db.prepare('SELECT * FROM transactions WHERE id = ? AND user_id = ?').get(transId, userId) as any;
+    const existing = await db.prepare('SELECT * FROM transactions WHERE id = ? AND user_id = ?').get(transId, userId) as any;
     if (!existing) {
       return res.status(404).json({ error: 'Transaction not found.' });
     }
@@ -281,7 +281,7 @@ transactionRouter.patch('/:id', (req: AuthRequest, res: Response) => {
 
     const newCategoryId = category_id !== undefined ? category_id : existing.category_id;
     // Check category ownership
-    const catCheck = db.prepare('SELECT id, name, icon, color FROM categories WHERE id = ? AND user_id = ?').get(newCategoryId, userId) as any;
+    const catCheck = await db.prepare('SELECT id, name, icon, color FROM categories WHERE id = ? AND user_id = ?').get(newCategoryId, userId) as any;
     if (!catCheck) {
       return res.status(403).json({ error: 'Selected category does not belong to your account.' });
     }
@@ -291,7 +291,7 @@ transactionRouter.patch('/:id', (req: AuthRequest, res: Response) => {
       if (account_id === null || account_id === '') {
         newAccountId = null;
       } else {
-        const accCheck = db.prepare('SELECT id FROM accounts WHERE id = ? AND user_id = ?').get(account_id, userId);
+        const accCheck = await db.prepare('SELECT id FROM accounts WHERE id = ? AND user_id = ?').get(account_id, userId);
         if (!accCheck) {
           return res.status(403).json({ error: 'Selected account does not belong to your account.' });
         }
@@ -304,13 +304,13 @@ transactionRouter.patch('/:id', (req: AuthRequest, res: Response) => {
     const newNotes = notes !== undefined ? String(notes).trim() : existing.notes;
     const now = new Date().toISOString();
 
-    db.prepare(`
+    await db.prepare(`
       UPDATE transactions
       SET account_id = ?, category_id = ?, type = ?, amount = ?, date = ?, description = ?, payment_method = ?, notes = ?, updated_at = ?
       WHERE id = ? AND user_id = ?
     `).run(newAccountId, newCategoryId, newType, newAmount, newDate, newDesc, newPayment, newNotes, now, transId, userId);
 
-    const updated = db.prepare(`
+    const updated = await db.prepare(`
       SELECT t.*, c.name as category_name, c.icon as category_icon, c.color as category_color,
              a.name as account_name, a.type as account_type
       FROM transactions t
@@ -330,12 +330,12 @@ transactionRouter.patch('/:id', (req: AuthRequest, res: Response) => {
 });
 
 // DELETE /api/transactions/:id
-transactionRouter.delete('/:id', (req: AuthRequest, res: Response) => {
+transactionRouter.delete('/:id', async (req: AuthRequest, res: Response) => {
   try {
     const userId = req.user!.id;
     const transId = req.params.id;
 
-    const result = db.prepare('DELETE FROM transactions WHERE id = ? AND user_id = ?').run(transId, userId);
+    const result = await db.prepare('DELETE FROM transactions WHERE id = ? AND user_id = ?').run(transId, userId);
     if (result.changes === 0) {
       return res.status(404).json({ error: 'Transaction not found or already deleted.' });
     }

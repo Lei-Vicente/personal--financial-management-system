@@ -7,7 +7,7 @@ export const budgetRouter = Router();
 budgetRouter.use(requireAuth);
 
 // GET /api/budgets?month=YYYY-MM
-budgetRouter.get('/', (req: AuthRequest, res: Response) => {
+budgetRouter.get('/', async (req: AuthRequest, res: Response) => {
   try {
     const userId = req.user!.id;
     const today = new Date();
@@ -15,7 +15,7 @@ budgetRouter.get('/', (req: AuthRequest, res: Response) => {
     const targetMonth = (req.query.month as string) || curYearMonth;
 
     // Fetch user's budgets for this month
-    const budgetRows = db.prepare(`
+    const budgetRows = await db.prepare(`
       SELECT b.id, b.user_id, b.category_id, b.amount as budget_amount, b.month,
              b.created_at, b.updated_at,
              c.name as category_name, c.icon as category_icon, c.color as category_color
@@ -34,9 +34,9 @@ budgetRouter.get('/', (req: AuthRequest, res: Response) => {
     const startDate = `${targetMonth}-01`;
     const endDate = `${targetMonth}-${String(daysInMonth).padStart(2, '0')}`;
 
-    const enrichedBudgets = budgetRows.map(b => {
+    const enrichedBudgets = await Promise.all(budgetRows.map(async b => {
       // Calculate actual spent in this category for the month
-      const spentRow = db.prepare(`
+      const spentRow = await db.prepare(`
         SELECT COALESCE(SUM(amount), 0) as total_spent
         FROM transactions
         WHERE user_id = ? AND category_id = ? AND type = 'EXPENSE'
@@ -63,7 +63,7 @@ budgetRouter.get('/', (req: AuthRequest, res: Response) => {
       }
 
       // Recent 3 expenses in this category
-      const recentExpenses = db.prepare(`
+      const recentExpenses = await db.prepare(`
         SELECT id, amount, date, description, payment_method
         FROM transactions
         WHERE user_id = ? AND category_id = ? AND type = 'EXPENSE'
@@ -82,7 +82,7 @@ budgetRouter.get('/', (req: AuthRequest, res: Response) => {
         status_warning: statusWarning,
         recent_expenses: recentExpenses,
       };
-    });
+    }));
 
     const totalBudget = enrichedBudgets.reduce((acc, curr) => acc + curr.budget_amount, 0);
     const totalSpent = enrichedBudgets.reduce((acc, curr) => acc + curr.spent, 0);
@@ -104,7 +104,7 @@ budgetRouter.get('/', (req: AuthRequest, res: Response) => {
 });
 
 // POST /api/budgets
-budgetRouter.post('/', (req: AuthRequest, res: Response) => {
+budgetRouter.post('/', async (req: AuthRequest, res: Response) => {
   try {
     const userId = req.user!.id;
     const { category_id, amount, month } = req.body;
@@ -123,7 +123,7 @@ budgetRouter.post('/', (req: AuthRequest, res: Response) => {
     }
 
     // Verify category ownership
-    const cat = db.prepare('SELECT id, name FROM categories WHERE id = ? AND user_id = ?').get(category_id, userId);
+    const cat = await db.prepare('SELECT id, name FROM categories WHERE id = ? AND user_id = ?').get(category_id, userId);
     if (!cat) {
       return res.status(403).json({ error: 'Category does not belong to your account.' });
     }
@@ -132,7 +132,7 @@ budgetRouter.post('/', (req: AuthRequest, res: Response) => {
     const id = crypto.randomUUID();
 
     // Upsert budget for (user_id, category_id, month)
-    db.prepare(`
+    await db.prepare(`
       INSERT INTO budgets (id, user_id, category_id, amount, month, created_at, updated_at)
       VALUES (?, ?, ?, ?, ?, ?, ?)
       ON CONFLICT(user_id, category_id, month) DO UPDATE SET
@@ -148,12 +148,12 @@ budgetRouter.post('/', (req: AuthRequest, res: Response) => {
 });
 
 // GET /api/budgets/:id
-budgetRouter.get('/:id', (req: AuthRequest, res: Response) => {
+budgetRouter.get('/:id', async (req: AuthRequest, res: Response) => {
   try {
     const userId = req.user!.id;
     const budgetId = req.params.id;
 
-    const budget = db.prepare(`
+    const budget = await db.prepare(`
       SELECT b.id, b.user_id, b.category_id, b.amount as budget_amount, b.month,
              b.created_at, b.updated_at,
              c.name as category_name, c.icon as category_icon, c.color as category_color
@@ -173,12 +173,12 @@ budgetRouter.get('/:id', (req: AuthRequest, res: Response) => {
 });
 
 // PATCH /api/budgets/:id
-budgetRouter.patch('/:id', (req: AuthRequest, res: Response) => {
+budgetRouter.patch('/:id', async (req: AuthRequest, res: Response) => {
   try {
     const userId = req.user!.id;
     const budgetId = req.params.id;
 
-    const existing = db.prepare('SELECT * FROM budgets WHERE id = ? AND user_id = ?').get(budgetId, userId) as any;
+    const existing = await db.prepare('SELECT * FROM budgets WHERE id = ? AND user_id = ?').get(budgetId, userId) as any;
     if (!existing) {
       return res.status(404).json({ error: 'Budget not found.' });
     }
@@ -191,7 +191,7 @@ budgetRouter.patch('/:id', (req: AuthRequest, res: Response) => {
 
     const newCatId = category_id !== undefined ? category_id : existing.category_id;
     if (category_id !== undefined) {
-      const cat = db.prepare('SELECT id FROM categories WHERE id = ? AND user_id = ?').get(newCatId, userId);
+      const cat = await db.prepare('SELECT id FROM categories WHERE id = ? AND user_id = ?').get(newCatId, userId);
       if (!cat) {
         return res.status(403).json({ error: 'Category does not belong to your account.' });
       }
@@ -203,13 +203,13 @@ budgetRouter.patch('/:id', (req: AuthRequest, res: Response) => {
     }
 
     const now = new Date().toISOString();
-    db.prepare(`
+    await db.prepare(`
       UPDATE budgets
       SET amount = ?, category_id = ?, month = ?, updated_at = ?
       WHERE id = ? AND user_id = ?
     `).run(newAmount, newCatId, newMonth, now, budgetId, userId);
 
-    const updated = db.prepare(`
+    const updated = await db.prepare(`
       SELECT b.id, b.user_id, b.category_id, b.amount as budget_amount, b.month,
              b.created_at, b.updated_at,
              c.name as category_name, c.icon as category_icon, c.color as category_color
@@ -225,12 +225,12 @@ budgetRouter.patch('/:id', (req: AuthRequest, res: Response) => {
 });
 
 // DELETE /api/budgets/:id
-budgetRouter.delete('/:id', (req: AuthRequest, res: Response) => {
+budgetRouter.delete('/:id', async (req: AuthRequest, res: Response) => {
   try {
     const userId = req.user!.id;
     const budgetId = req.params.id;
 
-    const result = db.prepare('DELETE FROM budgets WHERE id = ? AND user_id = ?').run(budgetId, userId);
+    const result = await db.prepare('DELETE FROM budgets WHERE id = ? AND user_id = ?').run(budgetId, userId);
     if (result.changes === 0) {
       return res.status(404).json({ error: 'Budget not found.' });
     }

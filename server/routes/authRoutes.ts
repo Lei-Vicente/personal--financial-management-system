@@ -25,7 +25,7 @@ function setSessionCookie(res: Response, token: string, expiresAt: Date) {
 }
 
 // POST /api/auth/register
-authRouter.post('/register', (req: Request, res: Response) => {
+authRouter.post('/register', async (req: Request, res: Response) => {
   try {
     const { full_name, email, password, confirm_password } = req.body;
 
@@ -48,7 +48,7 @@ authRouter.post('/register', (req: Request, res: Response) => {
     }
 
     // Check email uniqueness
-    const existing = db.prepare('SELECT id FROM users WHERE email = ?').get(normalizedEmail);
+    const existing = await db.prepare('SELECT id FROM users WHERE email = ?').get(normalizedEmail);
     if (existing) {
       return res.status(409).json({ error: 'An account with this email address already exists.' });
     }
@@ -58,24 +58,24 @@ authRouter.post('/register', (req: Request, res: Response) => {
     const passwordHash = hashPassword(password);
 
     // Insert user
-    db.prepare(`
+    await db.prepare(`
       INSERT INTO users (id, email, password_hash, full_name, is_verified, created_at, updated_at)
       VALUES (?, ?, ?, ?, 1, ?, ?)
     `).run(userId, normalizedEmail, passwordHash, full_name.trim(), now, now);
 
     // Insert default user settings
     const settingsId = crypto.randomUUID();
-    db.prepare(`
+    await db.prepare(`
       INSERT INTO user_settings (id, user_id, currency, monthly_income, timezone, onboarding_completed, created_at, updated_at)
       VALUES (?, ?, 'PHP', 0, 'Asia/Manila', 0, ?, ?)
     `).run(settingsId, userId, now, now);
 
     // Seed default categories and default wallet
-    seedDefaultCategories(userId);
-    seedDefaultAccount(userId);
+    await seedDefaultCategories(userId);
+    await seedDefaultAccount(userId);
 
     // Create session
-    const { token, expiresAt } = createSession(userId, req);
+    const { token, expiresAt } = await createSession(userId, req);
     setSessionCookie(res, token, expiresAt);
 
     const user = {
@@ -102,7 +102,7 @@ authRouter.post('/register', (req: Request, res: Response) => {
 });
 
 // POST /api/auth/login
-authRouter.post('/login', (req: Request, res: Response) => {
+authRouter.post('/login', async (req: Request, res: Response) => {
   try {
     const { email, password } = req.body;
 
@@ -111,7 +111,7 @@ authRouter.post('/login', (req: Request, res: Response) => {
     }
 
     const normalizedEmail = email.trim().toLowerCase();
-    const userRow = db.prepare(`
+    const userRow = await db.prepare(`
       SELECT u.id, u.email, u.password_hash, u.full_name, u.is_verified, u.created_at,
              st.currency, st.monthly_income, st.timezone, st.onboarding_completed
       FROM users u
@@ -123,7 +123,7 @@ authRouter.post('/login', (req: Request, res: Response) => {
       return res.status(401).json({ error: 'Invalid email address or password.' });
     }
 
-    const { token, expiresAt } = createSession(userRow.id, req);
+    const { token, expiresAt } = await createSession(userRow.id, req);
     setSessionCookie(res, token, expiresAt);
 
     const user = {
@@ -150,10 +150,10 @@ authRouter.post('/login', (req: Request, res: Response) => {
 });
 
 // POST /api/auth/logout
-authRouter.post('/logout', (req: Request, res: Response) => {
+authRouter.post('/logout', async (req: Request, res: Response) => {
   const token = extractSessionToken(req);
   if (token) {
-    invalidateSession(token);
+    await invalidateSession(token);
   }
   res.clearCookie('session_token', { path: '/' });
   return res.json({ message: 'Successfully logged out.' });
@@ -165,7 +165,7 @@ export function handleGetMe(req: AuthRequest, res: Response) {
 }
 
 // Handler for PATCH /api/me and /api/auth/me
-export function handlePatchMe(req: AuthRequest, res: Response) {
+export async function handlePatchMe(req: AuthRequest, res: Response) {
   try {
     const userId = req.user!.id;
     const { full_name, currency, monthly_income, timezone, onboarding_completed } = req.body;
@@ -173,20 +173,20 @@ export function handlePatchMe(req: AuthRequest, res: Response) {
     const now = new Date().toISOString();
 
     if (full_name && typeof full_name === 'string') {
-      db.prepare('UPDATE users SET full_name = ?, updated_at = ? WHERE id = ?').run(
+      await db.prepare('UPDATE users SET full_name = ?, updated_at = ? WHERE id = ?').run(
         full_name.trim(),
         now,
         userId
       );
     }
 
-    const currentSettings = db.prepare('SELECT * FROM user_settings WHERE user_id = ?').get(userId) as any;
+    const currentSettings = await db.prepare('SELECT * FROM user_settings WHERE user_id = ?').get(userId) as any;
     const newCurrency = currency !== undefined ? currency : (currentSettings?.currency || 'PHP');
     const newIncome = monthly_income !== undefined ? Number(monthly_income) : (currentSettings?.monthly_income || 0);
     const newTimezone = timezone !== undefined ? timezone : (currentSettings?.timezone || 'Asia/Manila');
     const newOnboarding = onboarding_completed !== undefined ? (onboarding_completed ? 1 : 0) : (currentSettings?.onboarding_completed || 0);
 
-    db.prepare(`
+    await db.prepare(`
       INSERT INTO user_settings (id, user_id, currency, monthly_income, timezone, onboarding_completed, created_at, updated_at)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?)
       ON CONFLICT(user_id) DO UPDATE SET
@@ -197,7 +197,7 @@ export function handlePatchMe(req: AuthRequest, res: Response) {
         updated_at = excluded.updated_at
     `).run(crypto.randomUUID(), userId, newCurrency, newIncome, newTimezone, newOnboarding, now, now);
 
-    const updatedUser = db.prepare(`
+    const updatedUser = await db.prepare(`
       SELECT u.id, u.email, u.full_name, u.is_verified, u.created_at,
              st.currency, st.monthly_income, st.timezone, st.onboarding_completed
       FROM users u
@@ -233,7 +233,7 @@ meRouter.patch('/', requireAuth, handlePatchMe);
 authRouter.use('/me', meRouter);
 
 // POST /api/auth/change-password
-authRouter.post('/change-password', requireAuth, (req: AuthRequest, res: Response) => {
+authRouter.post('/change-password', requireAuth, async (req: AuthRequest, res: Response) => {
   try {
     const userId = req.user!.id;
     const { current_password, new_password, confirm_password } = req.body;
@@ -250,14 +250,14 @@ authRouter.post('/change-password', requireAuth, (req: AuthRequest, res: Respons
       return res.status(400).json({ error: 'New passwords do not match.' });
     }
 
-    const userRow = db.prepare('SELECT password_hash FROM users WHERE id = ?').get(userId) as any;
+    const userRow = await db.prepare('SELECT password_hash FROM users WHERE id = ?').get(userId) as any;
     if (!verifyPassword(current_password, userRow.password_hash)) {
       return res.status(401).json({ error: 'Current password is incorrect.' });
     }
 
     const newHash = hashPassword(new_password);
     const now = new Date().toISOString();
-    db.prepare('UPDATE users SET password_hash = ?, updated_at = ? WHERE id = ?').run(newHash, now, userId);
+    await db.prepare('UPDATE users SET password_hash = ?, updated_at = ? WHERE id = ?').run(newHash, now, userId);
 
     return res.json({ message: 'Password changed successfully.' });
   } catch (error: any) {
@@ -267,12 +267,12 @@ authRouter.post('/change-password', requireAuth, (req: AuthRequest, res: Respons
 });
 
 // GET /api/auth/sessions
-authRouter.get('/sessions', requireAuth, (req: AuthRequest, res: Response) => {
+authRouter.get('/sessions', requireAuth, async (req: AuthRequest, res: Response) => {
   try {
     const userId = req.user!.id;
     const currentToken = req.sessionToken;
 
-    const rows = db.prepare(`
+    const rows = await db.prepare(`
       SELECT id, user_agent, ip_address, created_at, expires_at,
              (token = ?) as is_current
       FROM sessions
@@ -287,12 +287,12 @@ authRouter.get('/sessions', requireAuth, (req: AuthRequest, res: Response) => {
 });
 
 // DELETE /api/auth/sessions/:id
-authRouter.delete('/sessions/:id', requireAuth, (req: AuthRequest, res: Response) => {
+authRouter.delete('/sessions/:id', requireAuth, async (req: AuthRequest, res: Response) => {
   try {
     const userId = req.user!.id;
     const sessionId = req.params.id;
 
-    const result = db.prepare('DELETE FROM sessions WHERE id = ? AND user_id = ?').run(sessionId, userId);
+    const result = await db.prepare('DELETE FROM sessions WHERE id = ? AND user_id = ?').run(sessionId, userId);
     if (result.changes === 0) {
       return res.status(404).json({ error: 'Session not found or already revoked.' });
     }
@@ -304,7 +304,7 @@ authRouter.delete('/sessions/:id', requireAuth, (req: AuthRequest, res: Response
 });
 
 // POST /api/auth/forgot-password
-authRouter.post('/forgot-password', (req: Request, res: Response) => {
+authRouter.post('/forgot-password', async (req: Request, res: Response) => {
   try {
     const { email } = req.body;
     if (!email || typeof email !== 'string') {
@@ -312,14 +312,14 @@ authRouter.post('/forgot-password', (req: Request, res: Response) => {
     }
 
     const normalizedEmail = email.trim().toLowerCase();
-    const user = db.prepare('SELECT id, email FROM users WHERE email = ?').get(normalizedEmail) as any;
+    const user = await db.prepare('SELECT id, email FROM users WHERE email = ?').get(normalizedEmail) as any;
 
     if (user) {
       const resetToken = crypto.randomBytes(32).toString('hex');
       const expiresAt = new Date(Date.now() + 1000 * 60 * 60).toISOString(); // 1 hour
       const now = new Date().toISOString();
 
-      db.prepare(`
+      await db.prepare(`
         INSERT INTO password_reset_tokens (id, user_id, token, expires_at, created_at)
         VALUES (?, ?, ?, ?, ?)
       `).run(crypto.randomUUID(), user.id, resetToken, expiresAt, now);
@@ -340,7 +340,7 @@ authRouter.post('/forgot-password', (req: Request, res: Response) => {
 });
 
 // POST /api/auth/reset-password
-authRouter.post('/reset-password', (req: Request, res: Response) => {
+authRouter.post('/reset-password', async (req: Request, res: Response) => {
   try {
     const { token, new_password, confirm_password } = req.body;
 
@@ -357,7 +357,7 @@ authRouter.post('/reset-password', (req: Request, res: Response) => {
     }
 
     const now = new Date().toISOString();
-    const tokenRow = db.prepare(`
+    const tokenRow = await db.prepare(`
       SELECT id, user_id, expires_at, used_at
       FROM password_reset_tokens
       WHERE token = ? AND expires_at > ? AND used_at IS NULL
@@ -368,11 +368,11 @@ authRouter.post('/reset-password', (req: Request, res: Response) => {
     }
 
     const newHash = hashPassword(new_password);
-    db.prepare('UPDATE users SET password_hash = ?, updated_at = ? WHERE id = ?').run(newHash, now, tokenRow.user_id);
-    db.prepare('UPDATE password_reset_tokens SET used_at = ? WHERE id = ?').run(now, tokenRow.id);
+    await db.prepare('UPDATE users SET password_hash = ?, updated_at = ? WHERE id = ?').run(newHash, now, tokenRow.user_id);
+    await db.prepare('UPDATE password_reset_tokens SET used_at = ? WHERE id = ?').run(now, tokenRow.id);
 
     // Invalidate all active sessions for security
-    invalidateAllUserSessions(tokenRow.user_id);
+    await invalidateAllUserSessions(tokenRow.user_id);
 
     return res.json({ message: 'Password has been reset successfully. Please log in with your new password.' });
   } catch (error: any) {
@@ -382,7 +382,7 @@ authRouter.post('/reset-password', (req: Request, res: Response) => {
 });
 
 // POST /api/auth/verify-email
-authRouter.post('/verify-email', (req: Request, res: Response) => {
+authRouter.post('/verify-email', async (req: Request, res: Response) => {
   try {
     const { token } = req.body;
     if (!token) {
@@ -390,7 +390,7 @@ authRouter.post('/verify-email', (req: Request, res: Response) => {
     }
 
     const now = new Date().toISOString();
-    const tokenRow = db.prepare(`
+    const tokenRow = await db.prepare(`
       SELECT id, user_id, expires_at, used_at
       FROM verification_tokens
       WHERE token = ? AND expires_at > ? AND used_at IS NULL
@@ -400,8 +400,8 @@ authRouter.post('/verify-email', (req: Request, res: Response) => {
       return res.status(400).json({ error: 'Invalid or expired verification token.' });
     }
 
-    db.prepare('UPDATE users SET is_verified = 1, updated_at = ? WHERE id = ?').run(now, tokenRow.user_id);
-    db.prepare('UPDATE verification_tokens SET used_at = ? WHERE id = ?').run(now, tokenRow.id);
+    await db.prepare('UPDATE users SET is_verified = 1, updated_at = ? WHERE id = ?').run(now, tokenRow.user_id);
+    await db.prepare('UPDATE verification_tokens SET used_at = ? WHERE id = ?').run(now, tokenRow.id);
 
     return res.json({ message: 'Email address verified successfully.' });
   } catch (error: any) {
@@ -411,14 +411,14 @@ authRouter.post('/verify-email', (req: Request, res: Response) => {
 });
 
 // POST /api/auth/resend-verification
-authRouter.post('/resend-verification', requireAuth, (req: AuthRequest, res: Response) => {
+authRouter.post('/resend-verification', requireAuth, async (req: AuthRequest, res: Response) => {
   try {
     const userId = req.user!.id;
     const token = crypto.randomBytes(32).toString('hex');
     const expiresAt = new Date(Date.now() + 1000 * 60 * 60 * 24).toISOString(); // 24 hours
     const now = new Date().toISOString();
 
-    db.prepare(`
+    await db.prepare(`
       INSERT INTO verification_tokens (id, user_id, token, expires_at, created_at)
       VALUES (?, ?, ?, ?, ?)
     `).run(crypto.randomUUID(), userId, token, expiresAt, now);
@@ -436,10 +436,10 @@ profileRouter.patch('/', requireAuth, handlePatchMe);
 
 // Settings Router: GET & PATCH /api/settings
 export const settingsRouter = Router();
-settingsRouter.get('/', requireAuth, (req: AuthRequest, res: Response) => {
+settingsRouter.get('/', requireAuth, async (req: AuthRequest, res: Response) => {
   try {
     const userId = req.user!.id;
-    const settings = db.prepare('SELECT * FROM user_settings WHERE user_id = ?').get(userId);
+    const settings = await db.prepare('SELECT * FROM user_settings WHERE user_id = ?').get(userId);
     return res.json({ settings });
   } catch (error: any) {
     return res.status(500).json({ error: 'Failed to fetch settings.' });
@@ -449,10 +449,10 @@ settingsRouter.patch('/', requireAuth, handlePatchMe);
 
 // POST /api/auth/demo-login
 // Seamlessly prepares or seeds a demo account for quick evaluation
-authRouter.post('/demo-login', (req: Request, res: Response) => {
+authRouter.post('/demo-login', async (req: Request, res: Response) => {
   try {
     const demoEmail = 'lei.demo@example.com';
-    let userRow = db.prepare(`
+    let userRow = await db.prepare(`
       SELECT u.id, u.email, u.full_name, u.is_verified, u.created_at,
              st.currency, st.monthly_income, st.timezone, st.onboarding_completed
       FROM users u
@@ -466,20 +466,20 @@ authRouter.post('/demo-login', (req: Request, res: Response) => {
     if (!userRow) {
       userId = crypto.randomUUID();
       const pwHash = hashPassword('DemoPassword123!');
-      db.prepare(`
+      await db.prepare(`
         INSERT INTO users (id, email, password_hash, full_name, is_verified, created_at, updated_at)
         VALUES (?, ?, ?, 'Lei Vance', 1, ?, ?)
       `).run(userId, demoEmail, pwHash, now, now);
 
-      db.prepare(`
+      await db.prepare(`
         INSERT INTO user_settings (id, user_id, currency, monthly_income, timezone, onboarding_completed, created_at, updated_at)
         VALUES (?, ?, 'PHP', 45000, 'Asia/Manila', 1, ?, ?)
       `).run(crypto.randomUUID(), userId, now, now);
 
-      seedDefaultCategories(userId);
+      await seedDefaultCategories(userId);
 
       // Seed rich realistic transactions for demo
-      const cats = db.prepare('SELECT id, name, type FROM categories WHERE user_id = ?').all(userId) as any[];
+      const cats = await db.prepare('SELECT id, name, type FROM categories WHERE user_id = ?').all(userId) as any[];
       const catMap = new Map(cats.map(c => [c.name, c.id]));
 
       const insertTrans = db.prepare(`
@@ -502,17 +502,17 @@ authRouter.post('/demo-login', (req: Request, res: Response) => {
       const entCat = catMap.get('Entertainment');
       const freeCat = catMap.get('Freelance & Extra');
 
-      if (salaryCat) insertTrans.run(crypto.randomUUID(), userId, salaryCat, 'INCOME', 35000, d(1), 'Monthly Salary Payroll', 'Bank Transfer', 'Primary tech company payout', now, now);
-      if (freeCat) insertTrans.run(crypto.randomUUID(), userId, freeCat, 'INCOME', 10000, d(12), 'UI/UX Consultation Project', 'GCash', 'Client web redesign sprint', now, now);
+      if (salaryCat) await insertTrans.run(crypto.randomUUID(), userId, salaryCat, 'INCOME', 35000, d(1), 'Monthly Salary Payroll', 'Bank Transfer', 'Primary tech company payout', now, now);
+      if (freeCat) await insertTrans.run(crypto.randomUUID(), userId, freeCat, 'INCOME', 10000, d(12), 'UI/UX Consultation Project', 'GCash', 'Client web redesign sprint', now, now);
 
-      if (billCat) insertTrans.run(crypto.randomUUID(), userId, billCat, 'EXPENSE', 8500, d(3), 'Apartment Rental & Condo Dues', 'Bank Transfer', 'Monthly studio lease', now, now);
-      if (foodCat) insertTrans.run(crypto.randomUUID(), userId, foodCat, 'EXPENSE', 3200, d(4), 'Weekly Groceries at SM Supermarket', 'Credit Card', 'Produce, poultry, pantry essentials', now, now);
-      if (foodCat) insertTrans.run(crypto.randomUUID(), userId, foodCat, 'EXPENSE', 450, d(7), 'Lunch with Design Team at Wildflour', 'GCash', 'Sandwich and iced latte', now, now);
-      if (transCat) insertTrans.run(crypto.randomUUID(), userId, transCat, 'EXPENSE', 280, d(8), 'GrabCar to Client Office BGC', 'Credit Card', 'Midday meeting commute', now, now);
-      if (shopCat) insertTrans.run(crypto.randomUUID(), userId, shopCat, 'EXPENSE', 1850, d(10), 'Ergonomic Desk Accessories & Cable Organizers', 'Credit Card', 'Home office productivity upgrade', now, now);
-      if (entCat) insertTrans.run(crypto.randomUUID(), userId, entCat, 'EXPENSE', 549, d(11), 'Netflix & Spotify Premium Family Plan', 'Credit Card', 'Monthly streaming subscriptions', now, now);
-      if (foodCat) insertTrans.run(crypto.randomUUID(), userId, foodCat, 'EXPENSE', 1250, d(14), 'Weekend Dinner at Ramen Nagi', 'Debit Card', 'Tonkotsu ramen and gyoza', now, now);
-      if (transCat) insertTrans.run(crypto.randomUUID(), userId, transCat, 'EXPENSE', 600, d(15), 'Beep Card Top-up MRT-3', 'Cash', 'Weekly transport reload', now, now);
+      if (billCat) await insertTrans.run(crypto.randomUUID(), userId, billCat, 'EXPENSE', 8500, d(3), 'Apartment Rental & Condo Dues', 'Bank Transfer', 'Monthly studio lease', now, now);
+      if (foodCat) await insertTrans.run(crypto.randomUUID(), userId, foodCat, 'EXPENSE', 3200, d(4), 'Weekly Groceries at SM Supermarket', 'Credit Card', 'Produce, poultry, pantry essentials', now, now);
+      if (foodCat) await insertTrans.run(crypto.randomUUID(), userId, foodCat, 'EXPENSE', 450, d(7), 'Lunch with Design Team at Wildflour', 'GCash', 'Sandwich and iced latte', now, now);
+      if (transCat) await insertTrans.run(crypto.randomUUID(), userId, transCat, 'EXPENSE', 280, d(8), 'GrabCar to Client Office BGC', 'Credit Card', 'Midday meeting commute', now, now);
+      if (shopCat) await insertTrans.run(crypto.randomUUID(), userId, shopCat, 'EXPENSE', 1850, d(10), 'Ergonomic Desk Accessories & Cable Organizers', 'Credit Card', 'Home office productivity upgrade', now, now);
+      if (entCat) await insertTrans.run(crypto.randomUUID(), userId, entCat, 'EXPENSE', 549, d(11), 'Netflix & Spotify Premium Family Plan', 'Credit Card', 'Monthly streaming subscriptions', now, now);
+      if (foodCat) await insertTrans.run(crypto.randomUUID(), userId, foodCat, 'EXPENSE', 1250, d(14), 'Weekend Dinner at Ramen Nagi', 'Debit Card', 'Tonkotsu ramen and gyoza', now, now);
+      if (transCat) await insertTrans.run(crypto.randomUUID(), userId, transCat, 'EXPENSE', 600, d(15), 'Beep Card Top-up MRT-3', 'Cash', 'Weekly transport reload', now, now);
 
       // Budgets
       const insertBudget = db.prepare(`
@@ -520,11 +520,11 @@ authRouter.post('/demo-login', (req: Request, res: Response) => {
         VALUES (?, ?, ?, ?, ?, ?, ?)
       `);
       const curMonth = `${y}-${m}`;
-      if (foodCat) insertBudget.run(crypto.randomUUID(), userId, foodCat, 8000, curMonth, now, now);
-      if (transCat) insertBudget.run(crypto.randomUUID(), userId, transCat, 3000, curMonth, now, now);
-      if (billCat) insertBudget.run(crypto.randomUUID(), userId, billCat, 10000, curMonth, now, now);
-      if (shopCat) insertBudget.run(crypto.randomUUID(), userId, shopCat, 4000, curMonth, now, now);
-      if (entCat) insertBudget.run(crypto.randomUUID(), userId, entCat, 2500, curMonth, now, now);
+      if (foodCat) await insertBudget.run(crypto.randomUUID(), userId, foodCat, 8000, curMonth, now, now);
+      if (transCat) await insertBudget.run(crypto.randomUUID(), userId, transCat, 3000, curMonth, now, now);
+      if (billCat) await insertBudget.run(crypto.randomUUID(), userId, billCat, 10000, curMonth, now, now);
+      if (shopCat) await insertBudget.run(crypto.randomUUID(), userId, shopCat, 4000, curMonth, now, now);
+      if (entCat) await insertBudget.run(crypto.randomUUID(), userId, entCat, 2500, curMonth, now, now);
 
       // Savings Goals
       const insertGoal = db.prepare(`
@@ -532,18 +532,18 @@ authRouter.post('/demo-login', (req: Request, res: Response) => {
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
       `);
       const goal1Id = crypto.randomUUID();
-      insertGoal.run(goal1Id, userId, 'Emergency Fund (6 Months)', 60000, 24500, `${y + 1}-03-31`, 'High-yield digital bank liquidity buffer for contingencies', now, now);
+      await insertGoal.run(goal1Id, userId, 'Emergency Fund (6 Months)', 60000, 24500, `${y + 1}-03-31`, 'High-yield digital bank liquidity buffer for contingencies', now, now);
 
       const goal2Id = crypto.randomUUID();
-      insertGoal.run(goal2Id, userId, 'MacBook Pro M-Series Fund', 110000, 48000, `${y + 1}-06-30`, 'High-performance machine for mobile and web dev projects', now, now);
+      await insertGoal.run(goal2Id, userId, 'MacBook Pro M-Series Fund', 110000, 48000, `${y + 1}-06-30`, 'High-performance machine for mobile and web dev projects', now, now);
 
       // Contribution history
-      db.prepare(`
+      await db.prepare(`
         INSERT INTO savings_contributions (id, goal_id, user_id, amount, note, date, created_at)
         VALUES (?, ?, ?, ?, ?, ?, ?)
       `).run(crypto.randomUUID(), goal1Id, userId, 5000, 'Monthly allocation from salary', d(2), now);
 
-      db.prepare(`
+      await db.prepare(`
         INSERT INTO savings_contributions (id, goal_id, user_id, amount, note, date, created_at)
         VALUES (?, ?, ?, ?, ?, ?, ?)
       `).run(crypto.randomUUID(), goal2Id, userId, 8000, 'Bonus deposit from freelance milestone', d(13), now);
@@ -551,10 +551,10 @@ authRouter.post('/demo-login', (req: Request, res: Response) => {
       userId = userRow.id;
     }
 
-    const { token, expiresAt } = createSession(userId, req);
+    const { token, expiresAt } = await createSession(userId, req);
     setSessionCookie(res, token, expiresAt);
 
-    const freshUser = db.prepare(`
+    const freshUser = await db.prepare(`
       SELECT u.id, u.email, u.full_name, u.is_verified, u.created_at,
              st.currency, st.monthly_income, st.timezone, st.onboarding_completed
       FROM users u

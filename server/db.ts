@@ -229,17 +229,17 @@ export const db = {
 
     const pgSql = convertSqlPlaceholders(sql);
     return {
-      run(...params: any[]) {
-        const resultPromise = pgPool!.query(pgSql, params);
-        // Note: For asynchronous callers or synchronous wrappers
-        return { changes: 1 };
+      async run(...params: any[]) {
+        const res = await pgPool!.query(pgSql, params);
+        return { changes: res.rowCount || 0 };
       },
-      get(...params: any[]) {
-        // Warning: caller should use async query methods for PostgreSQL
-        throw new Error('Use db.queryOne for asynchronous PostgreSQL support');
+      async get(...params: any[]) {
+        const res = await pgPool!.query(pgSql, params);
+        return (res.rows[0] as any) || null;
       },
-      all(...params: any[]) {
-        throw new Error('Use db.queryAll for asynchronous PostgreSQL support');
+      async all(...params: any[]) {
+        const res = await pgPool!.query(pgSql, params);
+        return res.rows as any[];
       }
     };
   },
@@ -294,48 +294,28 @@ export const DEFAULT_CATEGORIES = [
   { name: 'Other', type: 'EXPENSE', icon: 'MoreHorizontal', color: '#6B7280' },
 ];
 
-export function seedDefaultCategories(userId: string) {
+export async function seedDefaultCategories(userId: string) {
   const now = new Date().toISOString();
-  if (isPostgres) {
-    // Fire and forget or scheduled in async callers
-    seedDefaultCategoriesAsync(userId).catch(console.error);
-    return;
-  }
-  const insertStmt = sqliteDb!.prepare(`
-    INSERT INTO categories (id, user_id, name, type, icon, color, is_default, created_at)
-    VALUES (?, ?, ?, ?, ?, ?, 1, ?)
-  `);
   for (const cat of DEFAULT_CATEGORIES) {
-    insertStmt.run(crypto.randomUUID(), userId, cat.name, cat.type, cat.icon, cat.color, now);
+    await db.prepare(`
+      INSERT INTO categories (id, user_id, name, type, icon, color, is_default, created_at)
+      VALUES (?, ?, ?, ?, ?, ?, 1, ?)
+    `).run(crypto.randomUUID(), userId, cat.name, cat.type, cat.icon, cat.color, now);
   }
 }
 
 export async function seedDefaultCategoriesAsync(userId: string) {
-  const now = new Date().toISOString();
-  for (const cat of DEFAULT_CATEGORIES) {
-    await db.execute(`
-      INSERT INTO categories (id, user_id, name, type, icon, color, is_default, created_at)
-      VALUES (?, ?, ?, ?, ?, ?, 1, ?)
-    `, [crypto.randomUUID(), userId, cat.name, cat.type, cat.icon, cat.color, now]);
-  }
+  return seedDefaultCategories(userId);
 }
 
-export function seedDefaultAccount(userId: string) {
+export async function seedDefaultAccount(userId: string) {
   const now = new Date().toISOString();
-  if (isPostgres) {
-    seedDefaultAccountAsync(userId).catch(console.error);
-    return;
-  }
-  sqliteDb!.prepare(`
+  await db.prepare(`
     INSERT INTO accounts (id, user_id, name, type, balance, currency, color, icon, is_default, created_at, updated_at)
     VALUES (?, ?, 'Cash Wallet', 'CASH', 0, 'PHP', '#10B981', 'Wallet', 1, ?, ?)
   `).run(crypto.randomUUID(), userId, now, now);
 }
 
 export async function seedDefaultAccountAsync(userId: string) {
-  const now = new Date().toISOString();
-  await db.execute(`
-    INSERT INTO accounts (id, user_id, name, type, balance, currency, color, icon, is_default, created_at, updated_at)
-    VALUES (?, ?, 'Cash Wallet', 'CASH', 0, 'PHP', '#10B981', 'Wallet', 1, ?, ?)
-  `, [crypto.randomUUID(), userId, now, now]);
+  return seedDefaultAccount(userId);
 }

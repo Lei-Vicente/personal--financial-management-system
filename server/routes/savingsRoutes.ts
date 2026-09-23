@@ -7,18 +7,18 @@ export const savingsRouter = Router();
 savingsRouter.use(requireAuth);
 
 // GET /api/savings-goals
-savingsRouter.get('/', (req: AuthRequest, res: Response) => {
+savingsRouter.get('/', async (req: AuthRequest, res: Response) => {
   try {
     const userId = req.user!.id;
 
-    const goals = db.prepare(`
+    const goals = await db.prepare(`
       SELECT * FROM savings_goals
       WHERE user_id = ?
       ORDER BY created_at DESC
     `).all(userId) as any[];
 
-    const enriched = goals.map(g => {
-      const contributions = db.prepare(`
+    const enriched = await Promise.all(goals.map(async g => {
+      const contributions = await db.prepare(`
         SELECT id, amount, note, date, created_at
         FROM savings_contributions
         WHERE goal_id = ? AND user_id = ?
@@ -38,7 +38,7 @@ savingsRouter.get('/', (req: AuthRequest, res: Response) => {
         percentage,
         contributions,
       };
-    });
+    }));
 
     const totalTarget = enriched.reduce((acc, g) => acc + g.target_amount, 0);
     const totalSaved = enriched.reduce((acc, g) => acc + g.current_amount, 0);
@@ -59,7 +59,7 @@ savingsRouter.get('/', (req: AuthRequest, res: Response) => {
 });
 
 // POST /api/savings-goals
-savingsRouter.post('/', (req: AuthRequest, res: Response) => {
+savingsRouter.post('/', async (req: AuthRequest, res: Response) => {
   try {
     const userId = req.user!.id;
     const { name, target_amount, initial_amount = 0, target_date, description = '' } = req.body;
@@ -77,13 +77,13 @@ savingsRouter.post('/', (req: AuthRequest, res: Response) => {
     const now = new Date().toISOString();
     const goalId = crypto.randomUUID();
 
-    db.prepare(`
+    await db.prepare(`
       INSERT INTO savings_goals (id, user_id, name, target_amount, current_amount, target_date, description, created_at, updated_at)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).run(goalId, userId, name.trim(), numTarget, numInitial, target_date || null, description ? String(description).trim() : '', now, now);
 
     if (numInitial > 0) {
-      db.prepare(`
+      await db.prepare(`
         INSERT INTO savings_contributions (id, goal_id, user_id, amount, note, date, created_at)
         VALUES (?, ?, ?, ?, 'Initial deposit', ?, ?)
       `).run(crypto.randomUUID(), goalId, userId, numInitial, now.split('T')[0], now);
@@ -97,12 +97,12 @@ savingsRouter.post('/', (req: AuthRequest, res: Response) => {
 });
 
 // PATCH /api/savings-goals/:id
-savingsRouter.patch('/:id', (req: AuthRequest, res: Response) => {
+savingsRouter.patch('/:id', async (req: AuthRequest, res: Response) => {
   try {
     const userId = req.user!.id;
     const goalId = req.params.id;
 
-    const existing = db.prepare('SELECT * FROM savings_goals WHERE id = ? AND user_id = ?').get(goalId, userId) as any;
+    const existing = await db.prepare('SELECT * FROM savings_goals WHERE id = ? AND user_id = ?').get(goalId, userId) as any;
     if (!existing) {
       return res.status(404).json({ error: 'Savings goal not found.' });
     }
@@ -114,7 +114,7 @@ savingsRouter.patch('/:id', (req: AuthRequest, res: Response) => {
     const newDesc = description !== undefined ? String(description).trim() : existing.description;
     const now = new Date().toISOString();
 
-    db.prepare(`
+    await db.prepare(`
       UPDATE savings_goals
       SET name = ?, target_amount = ?, target_date = ?, description = ?, updated_at = ?
       WHERE id = ? AND user_id = ?
@@ -127,12 +127,12 @@ savingsRouter.patch('/:id', (req: AuthRequest, res: Response) => {
 });
 
 // GET /api/savings-goals/:id
-savingsRouter.get('/:id', (req: AuthRequest, res: Response) => {
+savingsRouter.get('/:id', async (req: AuthRequest, res: Response) => {
   try {
     const userId = req.user!.id;
     const goalId = req.params.id;
 
-    const goal = db.prepare(`
+    const goal = await db.prepare(`
       SELECT * FROM savings_goals
       WHERE id = ? AND user_id = ?
     `).get(goalId, userId) as any;
@@ -141,7 +141,7 @@ savingsRouter.get('/:id', (req: AuthRequest, res: Response) => {
       return res.status(404).json({ error: 'Savings goal not found.' });
     }
 
-    const contributions = db.prepare(`
+    const contributions = await db.prepare(`
       SELECT id, amount, note, date, created_at
       FROM savings_contributions
       WHERE goal_id = ? AND user_id = ?
@@ -169,18 +169,18 @@ savingsRouter.get('/:id', (req: AuthRequest, res: Response) => {
 });
 
 // GET /api/savings-goals/:id/contributions
-savingsRouter.get('/:id/contributions', (req: AuthRequest, res: Response) => {
+savingsRouter.get('/:id/contributions', async (req: AuthRequest, res: Response) => {
   try {
     const userId = req.user!.id;
     const goalId = req.params.id;
 
     // Check goal ownership
-    const goal = db.prepare('SELECT id FROM savings_goals WHERE id = ? AND user_id = ?').get(goalId, userId);
+    const goal = await db.prepare('SELECT id FROM savings_goals WHERE id = ? AND user_id = ?').get(goalId, userId);
     if (!goal) {
       return res.status(404).json({ error: 'Savings goal not found.' });
     }
 
-    const contributions = db.prepare(`
+    const contributions = await db.prepare(`
       SELECT id, goal_id, user_id, amount, note, date, created_at
       FROM savings_contributions
       WHERE goal_id = ? AND user_id = ?
@@ -194,13 +194,13 @@ savingsRouter.get('/:id/contributions', (req: AuthRequest, res: Response) => {
 });
 
 // POST /api/savings-goals/:id/contributions
-savingsRouter.post('/:id/contributions', (req: AuthRequest, res: Response) => {
+savingsRouter.post('/:id/contributions', async (req: AuthRequest, res: Response) => {
   try {
     const userId = req.user!.id;
     const goalId = req.params.id;
     const { amount, note = '', date } = req.body;
 
-    const existing = db.prepare('SELECT * FROM savings_goals WHERE id = ? AND user_id = ?').get(goalId, userId) as any;
+    const existing = await db.prepare('SELECT * FROM savings_goals WHERE id = ? AND user_id = ?').get(goalId, userId) as any;
     if (!existing) {
       return res.status(404).json({ error: 'Savings goal not found.' });
     }
@@ -215,12 +215,12 @@ savingsRouter.post('/:id/contributions', (req: AuthRequest, res: Response) => {
     const contribId = crypto.randomUUID();
 
     // Atomic update
-    db.prepare(`
+    await db.prepare(`
       INSERT INTO savings_contributions (id, goal_id, user_id, amount, note, date, created_at)
       VALUES (?, ?, ?, ?, ?, ?, ?)
     `).run(contribId, goalId, userId, numAmount, note ? String(note).trim() : '', contribDate, now);
 
-    db.prepare(`
+    await db.prepare(`
       UPDATE savings_goals
       SET current_amount = current_amount + ?, updated_at = ?
       WHERE id = ? AND user_id = ?
@@ -234,21 +234,21 @@ savingsRouter.post('/:id/contributions', (req: AuthRequest, res: Response) => {
 });
 
 // DELETE /api/savings-goals/:id/contributions/:contributionId
-savingsRouter.delete('/:id/contributions/:contributionId', (req: AuthRequest, res: Response) => {
+savingsRouter.delete('/:id/contributions/:contributionId', async (req: AuthRequest, res: Response) => {
   try {
     const userId = req.user!.id;
     const goalId = req.params.id;
     const contribId = req.params.contributionId;
 
     // Verify ownership of goal and contribution
-    const contrib = db.prepare('SELECT id, amount FROM savings_contributions WHERE id = ? AND goal_id = ? AND user_id = ?').get(contribId, goalId, userId) as any;
+    const contrib = await db.prepare('SELECT id, amount FROM savings_contributions WHERE id = ? AND goal_id = ? AND user_id = ?').get(contribId, goalId, userId) as any;
     if (!contrib) {
       return res.status(404).json({ error: 'Contribution not found.' });
     }
 
     const now = new Date().toISOString();
-    db.prepare('DELETE FROM savings_contributions WHERE id = ? AND user_id = ?').run(contribId, userId);
-    db.prepare('UPDATE savings_goals SET current_amount = MAX(0, current_amount - ?), updated_at = ? WHERE id = ? AND user_id = ?').run(contrib.amount, now, goalId, userId);
+    await db.prepare('DELETE FROM savings_contributions WHERE id = ? AND user_id = ?').run(contribId, userId);
+    await db.prepare('UPDATE savings_goals SET current_amount = MAX(0, current_amount - ?), updated_at = ? WHERE id = ? AND user_id = ?').run(contrib.amount, now, goalId, userId);
 
     return res.json({ message: 'Contribution removed successfully.' });
   } catch (error: any) {
@@ -257,12 +257,12 @@ savingsRouter.delete('/:id/contributions/:contributionId', (req: AuthRequest, re
 });
 
 // DELETE /api/savings-goals/:id
-savingsRouter.delete('/:id', (req: AuthRequest, res: Response) => {
+savingsRouter.delete('/:id', async (req: AuthRequest, res: Response) => {
   try {
     const userId = req.user!.id;
     const goalId = req.params.id;
 
-    const result = db.prepare('DELETE FROM savings_goals WHERE id = ? AND user_id = ?').run(goalId, userId);
+    const result = await db.prepare('DELETE FROM savings_goals WHERE id = ? AND user_id = ?').run(goalId, userId);
     if (result.changes === 0) {
       return res.status(404).json({ error: 'Savings goal not found.' });
     }

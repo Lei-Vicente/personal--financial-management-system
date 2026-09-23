@@ -7,11 +7,11 @@ export const accountRouter = Router();
 accountRouter.use(requireAuth);
 
 // GET /api/accounts - List user's accounts / wallets with calculated real balance
-accountRouter.get('/', (req: AuthRequest, res: Response) => {
+accountRouter.get('/', async (req: AuthRequest, res: Response) => {
   try {
     const userId = req.user!.id;
 
-    const rows = db.prepare(`
+    const rows = await db.prepare(`
       SELECT a.*,
         COALESCE(
           (SELECT SUM(CASE WHEN t.type = 'INCOME' THEN t.amount ELSE -t.amount END)
@@ -50,7 +50,7 @@ accountRouter.get('/', (req: AuthRequest, res: Response) => {
 });
 
 // POST /api/accounts - Create a new account / wallet
-accountRouter.post('/', (req: AuthRequest, res: Response) => {
+accountRouter.post('/', async (req: AuthRequest, res: Response) => {
   try {
     const userId = req.user!.id;
     const { name, type = 'WALLET', balance = 0, currency = 'PHP', color = '#2563EB', icon = 'Wallet' } = req.body;
@@ -73,12 +73,12 @@ accountRouter.post('/', (req: AuthRequest, res: Response) => {
     const id = crypto.randomUUID();
     const now = new Date().toISOString();
 
-    db.prepare(`
+    await db.prepare(`
       INSERT INTO accounts (id, user_id, name, type, balance, currency, color, icon, is_default, created_at, updated_at)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?)
     `).run(id, userId, name.trim(), accType, initBalance, currency || 'PHP', color || '#2563EB', icon || 'Wallet', now, now);
 
-    const inserted = db.prepare('SELECT * FROM accounts WHERE id = ?').get(id);
+    const inserted = await db.prepare('SELECT * FROM accounts WHERE id = ?').get(id);
 
     return res.status(201).json({
       message: 'Account created successfully.',
@@ -94,12 +94,12 @@ accountRouter.post('/', (req: AuthRequest, res: Response) => {
 });
 
 // PATCH /api/accounts/:id - Update account details
-accountRouter.patch('/:id', (req: AuthRequest, res: Response) => {
+accountRouter.patch('/:id', async (req: AuthRequest, res: Response) => {
   try {
     const userId = req.user!.id;
     const accountId = req.params.id;
 
-    const existing = db.prepare('SELECT * FROM accounts WHERE id = ? AND user_id = ?').get(accountId, userId) as any;
+    const existing = await db.prepare('SELECT * FROM accounts WHERE id = ? AND user_id = ?').get(accountId, userId) as any;
     if (!existing) {
       return res.status(404).json({ error: 'Account not found.' });
     }
@@ -117,13 +117,13 @@ accountRouter.patch('/:id', (req: AuthRequest, res: Response) => {
     }
 
     const now = new Date().toISOString();
-    db.prepare(`
+    await db.prepare(`
       UPDATE accounts
       SET name = ?, type = ?, balance = ?, color = ?, icon = ?, updated_at = ?
       WHERE id = ? AND user_id = ?
     `).run(newName, newType, newBalance, newColor, newIcon, now, accountId, userId);
 
-    const updated = db.prepare('SELECT * FROM accounts WHERE id = ?').get(accountId);
+    const updated = await db.prepare('SELECT * FROM accounts WHERE id = ?').get(accountId);
 
     return res.json({
       message: 'Account updated successfully.',
@@ -136,18 +136,18 @@ accountRouter.patch('/:id', (req: AuthRequest, res: Response) => {
 });
 
 // DELETE /api/accounts/:id - Remove an account
-accountRouter.delete('/:id', (req: AuthRequest, res: Response) => {
+accountRouter.delete('/:id', async (req: AuthRequest, res: Response) => {
   try {
     const userId = req.user!.id;
     const accountId = req.params.id;
 
-    const existing = db.prepare('SELECT * FROM accounts WHERE id = ? AND user_id = ?').get(accountId, userId) as any;
+    const existing = await db.prepare('SELECT * FROM accounts WHERE id = ? AND user_id = ?').get(accountId, userId) as any;
     if (!existing) {
       return res.status(404).json({ error: 'Account not found.' });
     }
 
     // Transactions tied to this account will have account_id set to null via foreign key ON DELETE SET NULL
-    db.prepare('DELETE FROM accounts WHERE id = ? AND user_id = ?').run(accountId, userId);
+    await db.prepare('DELETE FROM accounts WHERE id = ? AND user_id = ?').run(accountId, userId);
 
     return res.json({ message: 'Account deleted successfully.' });
   } catch (error: any) {

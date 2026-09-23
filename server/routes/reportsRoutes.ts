@@ -6,7 +6,7 @@ export const reportRouter = Router();
 reportRouter.use(requireAuth);
 
 // GET /api/reports/summary?type=monthly|yearly|category|budget|savings&period=...
-reportRouter.get('/summary', (req: AuthRequest, res: Response) => {
+reportRouter.get('/summary', async (req: AuthRequest, res: Response) => {
   try {
     const userId = req.user!.id;
     const { type = 'monthly', year, month } = req.query;
@@ -26,7 +26,7 @@ reportRouter.get('/summary', (req: AuthRequest, res: Response) => {
     }
 
     // High level totals
-    const totals = db.prepare(`
+    const totals = await db.prepare(`
       SELECT
         COALESCE(SUM(CASE WHEN type = 'INCOME' THEN amount ELSE 0 END), 0) as total_income,
         COALESCE(SUM(CASE WHEN type = 'EXPENSE' THEN amount ELSE 0 END), 0) as total_expense,
@@ -41,18 +41,18 @@ reportRouter.get('/summary', (req: AuthRequest, res: Response) => {
     const savingsRate = totalIncome > 0 ? Math.max(0, Math.round(((totalIncome - totalExpense) / totalIncome) * 100)) : 0;
 
     // Top spending category
-    const topCategory = db.prepare(`
+    const topCategory = await db.prepare(`
       SELECT c.name, c.color, c.icon, SUM(t.amount) as amount
       FROM transactions t
       JOIN categories c ON t.category_id = c.id
       WHERE t.user_id = ? AND t.type = 'EXPENSE' AND t.date >= ? AND t.date <= ?
-      GROUP BY c.id
+      GROUP BY c.id, c.name, c.color, c.icon
       ORDER BY amount DESC
       LIMIT 1
     `).get(userId, startDate, endDate) as any;
 
     // Largest expense
-    const largestExpense = db.prepare(`
+    const largestExpense = await db.prepare(`
       SELECT t.id, t.amount, t.description, t.date, c.name as category_name
       FROM transactions t
       JOIN categories c ON t.category_id = c.id
@@ -62,12 +62,12 @@ reportRouter.get('/summary', (req: AuthRequest, res: Response) => {
     `).get(userId, startDate, endDate) as any;
 
     // Category breakdown
-    const categoryBreakdown = db.prepare(`
+    const categoryBreakdown = await db.prepare(`
       SELECT c.name, c.color, c.icon, c.type, SUM(t.amount) as amount, COUNT(t.id) as count
       FROM transactions t
       JOIN categories c ON t.category_id = c.id
       WHERE t.user_id = ? AND t.date >= ? AND t.date <= ?
-      GROUP BY c.id
+      GROUP BY c.id, c.name, c.color, c.icon, c.type
       ORDER BY amount DESC
     `).all(userId, startDate, endDate) as any[];
 
@@ -81,7 +81,7 @@ reportRouter.get('/summary', (req: AuthRequest, res: Response) => {
         const days = new Date(targetYear, m, 0).getDate();
         const mEnd = `${targetYear}-${mStr}-${String(days).padStart(2, '0')}`;
 
-        const mRow = db.prepare(`
+        const mRow = await db.prepare(`
           SELECT
             COALESCE(SUM(CASE WHEN type = 'INCOME' THEN amount ELSE 0 END), 0) as income,
             COALESCE(SUM(CASE WHEN type = 'EXPENSE' THEN amount ELSE 0 END), 0) as expense
@@ -126,7 +126,7 @@ reportRouter.get('/summary', (req: AuthRequest, res: Response) => {
 });
 
 // GET /api/reports/export-csv and /api/reports/csv
-const handleExportCSV = (req: AuthRequest, res: Response) => {
+const handleExportCSV = async (req: AuthRequest, res: Response) => {
   try {
     const userId = req.user!.id;
     const { start_date, end_date, type } = req.query;
@@ -154,7 +154,7 @@ const handleExportCSV = (req: AuthRequest, res: Response) => {
 
     sql += ' ORDER BY t.date DESC, t.created_at DESC';
 
-    const rows = db.prepare(sql).all(...params) as any[];
+    const rows = await db.prepare(sql).all(...params) as any[];
 
     // Build CSV string
     const headers = ['Date', 'Type', 'Category', 'Description', 'Payment Method', 'Amount', 'Notes'];
