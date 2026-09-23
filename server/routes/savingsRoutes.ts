@@ -11,20 +11,30 @@ savingsRouter.get('/', async (req: AuthRequest, res: Response) => {
   try {
     const userId = req.user!.id;
 
-    const goals = await db.prepare(`
-      SELECT * FROM savings_goals
-      WHERE user_id = ?
-      ORDER BY created_at DESC
-    `).all(userId) as any[];
+    const [goals, allContributions] = await Promise.all([
+      db.prepare(`
+        SELECT * FROM savings_goals
+        WHERE user_id = ?
+        ORDER BY created_at DESC
+      `).all(userId) as Promise<any[]>,
 
-    const enriched = await Promise.all(goals.map(async g => {
-      const contributions = await db.prepare(`
-        SELECT id, amount, note, date, created_at
+      db.prepare(`
+        SELECT id, goal_id, amount, note, date, created_at
         FROM savings_contributions
-        WHERE goal_id = ? AND user_id = ?
+        WHERE user_id = ?
         ORDER BY date DESC, created_at DESC
-      `).all(g.id, userId);
+      `).all(userId) as Promise<any[]>,
+    ]);
 
+    const contribMap = new Map<string, any[]>();
+    for (const c of allContributions) {
+      const list = contribMap.get(c.goal_id) || [];
+      list.push(c);
+      contribMap.set(c.goal_id, list);
+    }
+
+    const enriched = goals.map(g => {
+      const contributions = contribMap.get(g.id) || [];
       const target = Number(g.target_amount);
       const current = Number(g.current_amount);
       const remaining = Math.max(0, target - current);
@@ -38,7 +48,7 @@ savingsRouter.get('/', async (req: AuthRequest, res: Response) => {
         percentage,
         contributions,
       };
-    }));
+    });
 
     const totalTarget = enriched.reduce((acc, g) => acc + g.target_amount, 0);
     const totalSaved = enriched.reduce((acc, g) => acc + g.current_amount, 0);

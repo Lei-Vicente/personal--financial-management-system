@@ -7,6 +7,7 @@ import {
   createSession,
   invalidateSession,
   invalidateAllUserSessions,
+  invalidateSessionCache,
   requireAuth,
   AuthRequest,
   extractSessionToken,
@@ -204,6 +205,10 @@ export async function handlePatchMe(req: AuthRequest, res: Response) {
       LEFT JOIN user_settings st ON u.id = st.user_id
       WHERE u.id = ?
     `).get(userId) as any;
+
+    if (req.sessionToken) {
+      invalidateSessionCache(req.sessionToken);
+    }
 
     return res.json({
       message: 'Profile updated successfully.',

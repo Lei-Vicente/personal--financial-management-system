@@ -39,6 +39,23 @@ export interface AuthRequest extends Request {
   sessionToken?: string;
 }
 
+interface CachedSession {
+  user: AuthenticatedUser;
+  expiresAt: number;
+  cachedAt: number;
+}
+
+const sessionCache = new Map<string, CachedSession>();
+const SESSION_CACHE_TTL_MS = 60 * 1000; // 60 seconds memory cache
+
+export function invalidateSessionCache(token?: string) {
+  if (token) {
+    sessionCache.delete(token);
+  } else {
+    sessionCache.clear();
+  }
+}
+
 export async function createSession(userId: string, req: Request): Promise<{ token: string; expiresAt: Date }> {
   const token = crypto.randomBytes(32).toString('hex');
   const expiresAt = new Date(Date.now() + SESSION_TTL_MS);
@@ -62,10 +79,12 @@ export async function createSession(userId: string, req: Request): Promise<{ tok
 }
 
 export async function invalidateSession(token: string) {
+  sessionCache.delete(token);
   await db.prepare('DELETE FROM sessions WHERE token = ?').run(token);
 }
 
 export async function invalidateAllUserSessions(userId: string) {
+  sessionCache.clear();
   await db.prepare('DELETE FROM sessions WHERE user_id = ?').run(userId);
 }
 
@@ -93,7 +112,17 @@ export async function requireAuth(req: AuthRequest, res: Response, next: NextFun
       return res.status(401).json({ error: 'Your session has expired or you are not logged in. Please log in.' });
     }
 
-    const nowIso = new Date().toISOString();
+    const now = Date.now();
+    // 1. Check in-memory cache for ultra-low latency response (0ms)
+    const cached = sessionCache.get(token);
+    if (cached && (now - cached.cachedAt < SESSION_CACHE_TTL_MS) && now < cached.expiresAt) {
+      req.sessionToken = token;
+      req.user = cached.user;
+      return next();
+    }
+
+    // 2. Query database if not cached or cache expired
+    const nowIso = new Date(now).toISOString();
     const sessionRow = await db.prepare(`
       SELECT s.id as session_id, s.token, s.expires_at,
              u.id as user_id, u.email, u.full_name, u.is_verified, u.created_at,
@@ -105,11 +134,11 @@ export async function requireAuth(req: AuthRequest, res: Response, next: NextFun
     `).get(token, nowIso) as any;
 
     if (!sessionRow) {
+      sessionCache.delete(token);
       return res.status(401).json({ error: 'Invalid or expired session. Please log in again.' });
     }
 
-    req.sessionToken = token;
-    req.user = {
+    const authenticatedUser: AuthenticatedUser = {
       id: sessionRow.user_id,
       email: sessionRow.email,
       full_name: sessionRow.full_name,
@@ -121,6 +150,15 @@ export async function requireAuth(req: AuthRequest, res: Response, next: NextFun
       onboarding_completed: Number(sessionRow.onboarding_completed || 0),
     };
 
+    // Store in cache
+    sessionCache.set(token, {
+      user: authenticatedUser,
+      expiresAt: new Date(sessionRow.expires_at).getTime(),
+      cachedAt: now,
+    });
+
+    req.sessionToken = token;
+    req.user = authenticatedUser;
     next();
   } catch (err) {
     next(err);

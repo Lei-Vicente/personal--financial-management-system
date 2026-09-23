@@ -25,38 +25,56 @@ export const handleDashboardAnalytics = async (req: AuthRequest, res: Response) 
     const prevStartDate = `${prevMonthStr}-01`;
     const prevEndDate = `${prevMonthStr}-${String(prevDaysInMonth).padStart(2, '0')}`;
 
-    // 1. Total all-time balance
-    const allTimeRow = await db.prepare(`
-      SELECT
-        COALESCE(SUM(CASE WHEN type = 'INCOME' THEN amount ELSE 0 END), 0) as total_income,
-        COALESCE(SUM(CASE WHEN type = 'EXPENSE' THEN amount ELSE 0 END), 0) as total_expense
-      FROM transactions
-      WHERE user_id = ?
-    `).get(userId) as any;
+    // Execute all dashboard queries concurrently for maximum performance
+    const [allTimeRow, curMonthRow, prevMonthRow, largestCatRow, categoryBreakdown] = await Promise.all([
+      db.prepare(`
+        SELECT
+          COALESCE(SUM(CASE WHEN type = 'INCOME' THEN amount ELSE 0 END), 0) as total_income,
+          COALESCE(SUM(CASE WHEN type = 'EXPENSE' THEN amount ELSE 0 END), 0) as total_expense
+        FROM transactions
+        WHERE user_id = ?
+      `).get(userId).catch(() => ({ total_income: 0, total_expense: 0 })),
+
+      db.prepare(`
+        SELECT
+          COALESCE(SUM(CASE WHEN type = 'INCOME' THEN amount ELSE 0 END), 0) as income,
+          COALESCE(SUM(CASE WHEN type = 'EXPENSE' THEN amount ELSE 0 END), 0) as expense
+        FROM transactions
+        WHERE user_id = ? AND date >= ? AND date <= ?
+      `).get(userId, curStartDate, curEndDate).catch(() => ({ income: 0, expense: 0 })),
+
+      db.prepare(`
+        SELECT
+          COALESCE(SUM(CASE WHEN type = 'INCOME' THEN amount ELSE 0 END), 0) as income,
+          COALESCE(SUM(CASE WHEN type = 'EXPENSE' THEN amount ELSE 0 END), 0) as expense
+        FROM transactions
+        WHERE user_id = ? AND date >= ? AND date <= ?
+      `).get(userId, prevStartDate, prevEndDate).catch(() => ({ income: 0, expense: 0 })),
+
+      db.prepare(`
+        SELECT c.name, c.color, c.icon, SUM(t.amount) as total
+        FROM transactions t
+        JOIN categories c ON t.category_id = c.id
+        WHERE t.user_id = ? AND t.type = 'EXPENSE' AND t.date >= ? AND t.date <= ?
+        GROUP BY c.id, c.name, c.color, c.icon
+        ORDER BY SUM(t.amount) DESC
+        LIMIT 1
+      `).get(userId, curStartDate, curEndDate).catch(() => null),
+
+      db.prepare(`
+        SELECT c.id, c.name, c.color, c.icon, SUM(t.amount) as total, COUNT(t.id) as count
+        FROM transactions t
+        JOIN categories c ON t.category_id = c.id
+        WHERE t.user_id = ? AND t.type = 'EXPENSE' AND t.date >= ? AND t.date <= ?
+        GROUP BY c.id, c.name, c.color, c.icon
+        ORDER BY SUM(t.amount) DESC
+      `).all(userId, curStartDate, curEndDate).catch(() => []),
+    ]);
 
     const allTimeBalance = (Number(allTimeRow?.total_income) || 0) - (Number(allTimeRow?.total_expense) || 0);
-
-    // 2. Current month totals
-    const curMonthRow = await db.prepare(`
-      SELECT
-        COALESCE(SUM(CASE WHEN type = 'INCOME' THEN amount ELSE 0 END), 0) as income,
-        COALESCE(SUM(CASE WHEN type = 'EXPENSE' THEN amount ELSE 0 END), 0) as expense
-      FROM transactions
-      WHERE user_id = ? AND date >= ? AND date <= ?
-    `).get(userId, curStartDate, curEndDate) as any;
-
     const curIncome = Number(curMonthRow?.income) || 0;
     const curExpense = Number(curMonthRow?.expense) || 0;
     const curNet = curIncome - curExpense;
-
-    // 3. Previous month totals
-    const prevMonthRow = await db.prepare(`
-      SELECT
-        COALESCE(SUM(CASE WHEN type = 'INCOME' THEN amount ELSE 0 END), 0) as income,
-        COALESCE(SUM(CASE WHEN type = 'EXPENSE' THEN amount ELSE 0 END), 0) as expense
-      FROM transactions
-      WHERE user_id = ? AND date >= ? AND date <= ?
-    `).get(userId, prevStartDate, prevEndDate) as any;
 
     const prevIncome = Number(prevMonthRow?.income) || 0;
     const prevExpense = Number(prevMonthRow?.expense) || 0;
@@ -67,38 +85,7 @@ export const handleDashboardAnalytics = async (req: AuthRequest, res: Response) 
     const expenseChangePct = prevExpense > 0 ? Math.round(((curExpense - prevExpense) / prevExpense) * 100 * 10) / 10 : 0;
     const balanceChangePct = prevNet !== 0 ? Math.round(((curNet - prevNet) / Math.abs(prevNet)) * 100 * 10) / 10 : 0;
 
-    // 4. Largest expense category this month
-    let largestCatRow = null;
-    try {
-      largestCatRow = await db.prepare(`
-        SELECT c.name, c.color, c.icon, SUM(t.amount) as total
-        FROM transactions t
-        JOIN categories c ON t.category_id = c.id
-        WHERE t.user_id = ? AND t.type = 'EXPENSE' AND t.date >= ? AND t.date <= ?
-        GROUP BY c.id, c.name, c.color, c.icon
-        ORDER BY SUM(t.amount) DESC
-        LIMIT 1
-      `).get(userId, curStartDate, curEndDate) as any;
-    } catch (e) {
-      console.warn('Could not query largest category:', e);
-    }
-
-    // 5. Category breakdown for current month
-    let categoryBreakdown: any[] = [];
-    try {
-      categoryBreakdown = await db.prepare(`
-        SELECT c.id, c.name, c.color, c.icon, SUM(t.amount) as total, COUNT(t.id) as count
-        FROM transactions t
-        JOIN categories c ON t.category_id = c.id
-        WHERE t.user_id = ? AND t.type = 'EXPENSE' AND t.date >= ? AND t.date <= ?
-        GROUP BY c.id, c.name, c.color, c.icon
-        ORDER BY SUM(t.amount) DESC
-      `).all(userId, curStartDate, curEndDate) as any[];
-    } catch (e) {
-      console.warn('Could not query category breakdown:', e);
-    }
-
-    const enrichedCategoryBreakdown = (categoryBreakdown || []).map(c => {
+    const enrichedCategoryBreakdown = ((categoryBreakdown as any[]) || []).map((c: any) => {
       const total = Number(c.total) || 0;
       return {
         ...c,

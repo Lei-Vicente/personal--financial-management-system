@@ -21,7 +21,8 @@ if (isPostgres) {
     connectionString: rawDatabaseUrl,
     ssl: rawDatabaseUrl.includes('localhost') ? false : { rejectUnauthorized: false },
     max: 10,
-    idleTimeoutMillis: 30000,
+    idleTimeoutMillis: 10000,
+    connectionTimeoutMillis: 5000,
   });
   console.log('Database connected: Supabase PostgreSQL');
 } else {
@@ -296,12 +297,18 @@ export const DEFAULT_CATEGORIES = [
 
 export async function seedDefaultCategories(userId: string) {
   const now = new Date().toISOString();
+  if (DEFAULT_CATEGORIES.length === 0) return;
+
+  const placeholders = DEFAULT_CATEGORIES.map(() => '(?, ?, ?, ?, ?, ?, 1, ?)').join(', ');
+  const params: any[] = [];
   for (const cat of DEFAULT_CATEGORIES) {
-    await db.prepare(`
-      INSERT INTO categories (id, user_id, name, type, icon, color, is_default, created_at)
-      VALUES (?, ?, ?, ?, ?, ?, 1, ?)
-    `).run(crypto.randomUUID(), userId, cat.name, cat.type, cat.icon, cat.color, now);
+    params.push(crypto.randomUUID(), userId, cat.name, cat.type, cat.icon, cat.color, now);
   }
+
+  await db.prepare(`
+    INSERT INTO categories (id, user_id, name, type, icon, color, is_default, created_at)
+    VALUES ${placeholders}
+  `).run(...params);
 }
 
 export async function seedDefaultCategoriesAsync(userId: string) {

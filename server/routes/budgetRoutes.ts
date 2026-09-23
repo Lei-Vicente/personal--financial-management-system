@@ -34,16 +34,40 @@ budgetRouter.get('/', async (req: AuthRequest, res: Response) => {
     const startDate = `${targetMonth}-01`;
     const endDate = `${targetMonth}-${String(daysInMonth).padStart(2, '0')}`;
 
-    const enrichedBudgets = await Promise.all(budgetRows.map(async b => {
-      // Calculate actual spent in this category for the month
-      const spentRow = await db.prepare(`
-        SELECT COALESCE(SUM(amount), 0) as total_spent
+    // Batch query category spending and recent transactions concurrently
+    const [spentRows, recentRows] = await Promise.all([
+      db.prepare(`
+        SELECT category_id, COALESCE(SUM(amount), 0) as total_spent
         FROM transactions
-        WHERE user_id = ? AND category_id = ? AND type = 'EXPENSE'
-          AND date >= ? AND date <= ?
-      `).get(userId, b.category_id, startDate, endDate) as any;
+        WHERE user_id = ? AND type = 'EXPENSE' AND date >= ? AND date <= ?
+        GROUP BY category_id
+      `).all(userId, startDate, endDate) as Promise<any[]>,
 
-      const spent = Number(spentRow ? spentRow.total_spent : 0);
+      db.prepare(`
+        SELECT id, category_id, amount, date, description, payment_method
+        FROM transactions
+        WHERE user_id = ? AND type = 'EXPENSE' AND date >= ? AND date <= ?
+        ORDER BY date DESC, created_at DESC
+        LIMIT 100
+      `).all(userId, startDate, endDate) as Promise<any[]>,
+    ]);
+
+    const spentMap = new Map<string, number>();
+    for (const r of spentRows) {
+      spentMap.set(r.category_id, Number(r.total_spent) || 0);
+    }
+
+    const recentMap = new Map<string, any[]>();
+    for (const r of recentRows) {
+      const list = recentMap.get(r.category_id) || [];
+      if (list.length < 3) {
+        list.push(r);
+        recentMap.set(r.category_id, list);
+      }
+    }
+
+    const enrichedBudgets = budgetRows.map(b => {
+      const spent = spentMap.get(b.category_id) || 0;
       const budgetAmount = Number(b.budget_amount);
       const remaining = budgetAmount - spent;
       const percentage = budgetAmount > 0 ? Math.round((spent / budgetAmount) * 100) : 0;
@@ -62,15 +86,7 @@ budgetRouter.get('/', async (req: AuthRequest, res: Response) => {
         statusWarning = `You've used ${percentage}% of your ${b.category_name} budget.`;
       }
 
-      // Recent 3 expenses in this category
-      const recentExpenses = await db.prepare(`
-        SELECT id, amount, date, description, payment_method
-        FROM transactions
-        WHERE user_id = ? AND category_id = ? AND type = 'EXPENSE'
-          AND date >= ? AND date <= ?
-        ORDER BY date DESC, created_at DESC
-        LIMIT 3
-      `).all(userId, b.category_id, startDate, endDate);
+      const recentExpenses = recentMap.get(b.category_id) || [];
 
       return {
         ...b,
@@ -82,7 +98,7 @@ budgetRouter.get('/', async (req: AuthRequest, res: Response) => {
         status_warning: statusWarning,
         recent_expenses: recentExpenses,
       };
-    }));
+    });
 
     const totalBudget = enrichedBudgets.reduce((acc, curr) => acc + curr.budget_amount, 0);
     const totalSpent = enrichedBudgets.reduce((acc, curr) => acc + curr.spent, 0);
