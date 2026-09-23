@@ -78,11 +78,13 @@ transactionRouter.get('/', (req: AuthRequest, res: Response) => {
     const direction = String(sort_order).toUpperCase() === 'ASC' ? 'ASC' : 'DESC';
 
     const dataSql = `
-      SELECT t.id, t.user_id, t.category_id, t.type, t.amount, t.date,
+      SELECT t.id, t.user_id, t.account_id, t.category_id, t.type, t.amount, t.date,
              t.description, t.payment_method, t.notes, t.created_at, t.updated_at,
-             c.name as category_name, c.icon as category_icon, c.color as category_color
+             c.name as category_name, c.icon as category_icon, c.color as category_color,
+             a.name as account_name, a.type as account_type, a.icon as account_icon
       FROM transactions t
       LEFT JOIN categories c ON t.category_id = c.id
+      LEFT JOIN accounts a ON t.account_id = a.id
       WHERE ${whereClause}
       ORDER BY ${sortCol} ${direction}, t.created_at DESC
       LIMIT ? OFFSET ?
@@ -127,9 +129,11 @@ transactionRouter.get('/:id', (req: AuthRequest, res: Response) => {
     const transId = req.params.id;
 
     const row = db.prepare(`
-      SELECT t.*, c.name as category_name, c.icon as category_icon, c.color as category_color
+      SELECT t.*, c.name as category_name, c.icon as category_icon, c.color as category_color,
+             a.name as account_name, a.type as account_type
       FROM transactions t
       LEFT JOIN categories c ON t.category_id = c.id
+      LEFT JOIN accounts a ON t.account_id = a.id
       WHERE t.id = ? AND t.user_id = ?
     `).get(transId, userId) as any;
 
@@ -148,6 +152,7 @@ transactionRouter.post('/', (req: AuthRequest, res: Response) => {
   try {
     const userId = req.user!.id;
     const {
+      account_id,
       category_id,
       type,
       amount,
@@ -184,15 +189,27 @@ transactionRouter.post('/', (req: AuthRequest, res: Response) => {
       return res.status(403).json({ error: 'Unauthorized: Category does not belong to your account.' });
     }
 
+    // Optional account ownership verification
+    let accId: string | null = null;
+    let accName: string | null = null;
+    if (account_id) {
+      const accCheck = db.prepare('SELECT id, name FROM accounts WHERE id = ? AND user_id = ?').get(account_id, userId) as any;
+      if (accCheck) {
+        accId = accCheck.id;
+        accName = accCheck.name;
+      }
+    }
+
     const transId = crypto.randomUUID();
     const now = new Date().toISOString();
 
     db.prepare(`
-      INSERT INTO transactions (id, user_id, category_id, type, amount, date, description, payment_method, notes, created_at, updated_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO transactions (id, user_id, account_id, category_id, type, amount, date, description, payment_method, notes, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).run(
       transId,
       userId,
+      accId,
       category_id,
       type,
       numAmount,
@@ -207,6 +224,8 @@ transactionRouter.post('/', (req: AuthRequest, res: Response) => {
     const inserted = {
       id: transId,
       user_id: userId,
+      account_id: accId,
+      account_name: accName,
       category_id,
       category_name: catCheck.name,
       category_icon: catCheck.icon,
@@ -243,7 +262,7 @@ transactionRouter.patch('/:id', (req: AuthRequest, res: Response) => {
       return res.status(404).json({ error: 'Transaction not found.' });
     }
 
-    const { category_id, type, amount, date, description, payment_method, notes } = req.body;
+    const { account_id, category_id, type, amount, date, description, payment_method, notes } = req.body;
 
     const newType = type !== undefined ? type : existing.type;
     if (newType !== 'INCOME' && newType !== 'EXPENSE') {
@@ -267,6 +286,19 @@ transactionRouter.patch('/:id', (req: AuthRequest, res: Response) => {
       return res.status(403).json({ error: 'Selected category does not belong to your account.' });
     }
 
+    let newAccountId = existing.account_id;
+    if (account_id !== undefined) {
+      if (account_id === null || account_id === '') {
+        newAccountId = null;
+      } else {
+        const accCheck = db.prepare('SELECT id FROM accounts WHERE id = ? AND user_id = ?').get(account_id, userId);
+        if (!accCheck) {
+          return res.status(403).json({ error: 'Selected account does not belong to your account.' });
+        }
+        newAccountId = account_id;
+      }
+    }
+
     const newDesc = description !== undefined ? String(description).trim() : existing.description;
     const newPayment = payment_method !== undefined ? String(payment_method) : existing.payment_method;
     const newNotes = notes !== undefined ? String(notes).trim() : existing.notes;
@@ -274,14 +306,16 @@ transactionRouter.patch('/:id', (req: AuthRequest, res: Response) => {
 
     db.prepare(`
       UPDATE transactions
-      SET category_id = ?, type = ?, amount = ?, date = ?, description = ?, payment_method = ?, notes = ?, updated_at = ?
+      SET account_id = ?, category_id = ?, type = ?, amount = ?, date = ?, description = ?, payment_method = ?, notes = ?, updated_at = ?
       WHERE id = ? AND user_id = ?
-    `).run(newCategoryId, newType, newAmount, newDate, newDesc, newPayment, newNotes, now, transId, userId);
+    `).run(newAccountId, newCategoryId, newType, newAmount, newDate, newDesc, newPayment, newNotes, now, transId, userId);
 
     const updated = db.prepare(`
-      SELECT t.*, c.name as category_name, c.icon as category_icon, c.color as category_color
+      SELECT t.*, c.name as category_name, c.icon as category_icon, c.color as category_color,
+             a.name as account_name, a.type as account_type
       FROM transactions t
       LEFT JOIN categories c ON t.category_id = c.id
+      LEFT JOIN accounts a ON t.account_id = a.id
       WHERE t.id = ? AND t.user_id = ?
     `).get(transId, userId);
 

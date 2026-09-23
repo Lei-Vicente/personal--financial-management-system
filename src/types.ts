@@ -21,9 +21,29 @@ export interface Category {
   created_at: string;
 }
 
+export interface Account {
+  id: string;
+  user_id: string;
+  name: string;
+  type: 'CASH' | 'BANK' | 'WALLET' | 'CREDIT' | 'INVESTMENT' | 'OTHER';
+  balance: number;
+  base_balance?: number;
+  current_balance?: number;
+  currency: string;
+  color: string;
+  icon: string;
+  is_default: number;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface Transaction {
   id: string;
   user_id: string;
+  account_id?: string | null;
+  account_name?: string;
+  account_type?: string;
+  account_icon?: string;
   category_id: string;
   category_name?: string;
   category_icon?: string;
