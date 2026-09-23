@@ -3,13 +3,16 @@ import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
 
-// Ensure data directory exists
-const dataDir = path.join(process.cwd(), 'data');
+// Use DATABASE_URL when a host provides a persistent disk (for example, Render).
+// Fall back to the local project data directory for development.
+const dbPath = process.env.DATABASE_URL
+  ? path.resolve(process.env.DATABASE_URL)
+  : path.join(process.cwd(), 'data', 'finance.db');
+const dataDir = path.dirname(dbPath);
 if (!fs.existsSync(dataDir)) {
   fs.mkdirSync(dataDir, { recursive: true });
 }
 
-const dbPath = path.join(dataDir, 'finance.db');
 export const db = new DatabaseSync(dbPath);
 
 // Enable WAL mode and foreign keys for performance and relational integrity
