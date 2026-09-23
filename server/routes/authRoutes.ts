@@ -1,6 +1,6 @@
 import { Router, Request, Response } from 'express';
 import crypto from 'node:crypto';
-import { db, seedDefaultCategories } from '../db.ts';
+import { db, seedDefaultCategories, seedDefaultAccount } from '../db.ts';
 import {
   hashPassword,
   verifyPassword,
@@ -70,8 +70,9 @@ authRouter.post('/register', (req: Request, res: Response) => {
       VALUES (?, ?, 'PHP', 0, 'Asia/Manila', 0, ?, ?)
     `).run(settingsId, userId, now, now);
 
-    // Seed default categories
+    // Seed default categories and default wallet
     seedDefaultCategories(userId);
+    seedDefaultAccount(userId);
 
     // Create session
     const { token, expiresAt } = createSession(userId, req);
