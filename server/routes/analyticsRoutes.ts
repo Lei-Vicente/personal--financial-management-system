@@ -12,12 +12,18 @@ export const handleDashboardAnalytics = async (req: AuthRequest, res: Response) 
     const curYear = today.getFullYear();
     const curMonthNum = today.getMonth() + 1;
     const curMonthStr = `${curYear}-${String(curMonthNum).padStart(2, '0')}`;
+    const curDaysInMonth = new Date(curYear, curMonthNum, 0).getDate();
+    const curStartDate = `${curMonthStr}-01`;
+    const curEndDate = `${curMonthStr}-${String(curDaysInMonth).padStart(2, '0')}`;
 
     // Previous month string
     const prevDate = new Date(curYear, today.getMonth() - 1, 1);
     const prevYear = prevDate.getFullYear();
     const prevMonthNum = prevDate.getMonth() + 1;
     const prevMonthStr = `${prevYear}-${String(prevMonthNum).padStart(2, '0')}`;
+    const prevDaysInMonth = new Date(prevYear, prevMonthNum, 0).getDate();
+    const prevStartDate = `${prevMonthStr}-01`;
+    const prevEndDate = `${prevMonthStr}-${String(prevDaysInMonth).padStart(2, '0')}`;
 
     // 1. Total all-time balance
     const allTimeRow = await db.prepare(`
@@ -28,7 +34,7 @@ export const handleDashboardAnalytics = async (req: AuthRequest, res: Response) 
       WHERE user_id = ?
     `).get(userId) as any;
 
-    const allTimeBalance = (allTimeRow.total_income || 0) - (allTimeRow.total_expense || 0);
+    const allTimeBalance = (Number(allTimeRow?.total_income) || 0) - (Number(allTimeRow?.total_expense) || 0);
 
     // 2. Current month totals
     const curMonthRow = await db.prepare(`
@@ -37,10 +43,10 @@ export const handleDashboardAnalytics = async (req: AuthRequest, res: Response) 
         COALESCE(SUM(CASE WHEN type = 'EXPENSE' THEN amount ELSE 0 END), 0) as expense
       FROM transactions
       WHERE user_id = ? AND date >= ? AND date <= ?
-    `).get(userId, `${curMonthStr}-01`, `${curMonthStr}-31`) as any;
+    `).get(userId, curStartDate, curEndDate) as any;
 
-    const curIncome = curMonthRow?.income || 0;
-    const curExpense = curMonthRow?.expense || 0;
+    const curIncome = Number(curMonthRow?.income) || 0;
+    const curExpense = Number(curMonthRow?.expense) || 0;
     const curNet = curIncome - curExpense;
 
     // 3. Previous month totals
@@ -50,10 +56,10 @@ export const handleDashboardAnalytics = async (req: AuthRequest, res: Response) 
         COALESCE(SUM(CASE WHEN type = 'EXPENSE' THEN amount ELSE 0 END), 0) as expense
       FROM transactions
       WHERE user_id = ? AND date >= ? AND date <= ?
-    `).get(userId, `${prevMonthStr}-01`, `${prevMonthStr}-31`) as any;
+    `).get(userId, prevStartDate, prevEndDate) as any;
 
-    const prevIncome = prevMonthRow?.income || 0;
-    const prevExpense = prevMonthRow?.expense || 0;
+    const prevIncome = Number(prevMonthRow?.income) || 0;
+    const prevExpense = Number(prevMonthRow?.expense) || 0;
     const prevNet = prevIncome - prevExpense;
 
     // Percentage changes
@@ -70,7 +76,7 @@ export const handleDashboardAnalytics = async (req: AuthRequest, res: Response) 
       GROUP BY c.id, c.name, c.color, c.icon
       ORDER BY total DESC
       LIMIT 1
-    `).get(userId, `${curMonthStr}-01`, `${curMonthStr}-31`) as any;
+    `).get(userId, curStartDate, curEndDate) as any;
 
     // 5. Category breakdown for current month
     const categoryBreakdown = await db.prepare(`
@@ -80,12 +86,16 @@ export const handleDashboardAnalytics = async (req: AuthRequest, res: Response) 
       WHERE t.user_id = ? AND t.type = 'EXPENSE' AND t.date >= ? AND t.date <= ?
       GROUP BY c.id, c.name, c.color, c.icon
       ORDER BY total DESC
-    `).all(userId, `${curMonthStr}-01`, `${curMonthStr}-31`) as any[];
+    `).all(userId, curStartDate, curEndDate) as any[];
 
-    const enrichedCategoryBreakdown = categoryBreakdown.map(c => ({
-      ...c,
-      percentage: curExpense > 0 ? Math.round((c.total / curExpense) * 100) : 0,
-    }));
+    const enrichedCategoryBreakdown = categoryBreakdown.map(c => {
+      const total = Number(c.total) || 0;
+      return {
+        ...c,
+        total,
+        percentage: curExpense > 0 ? Math.round((total / curExpense) * 100) : 0,
+      };
+    });
 
     return res.json({
       balance: {
@@ -105,7 +115,7 @@ export const handleDashboardAnalytics = async (req: AuthRequest, res: Response) 
         change_pct: expenseChangePct,
         largest_category: largestCatRow ? {
           name: largestCatRow.name,
-          amount: largestCatRow.total,
+          amount: Number(largestCatRow.total) || 0,
           color: largestCatRow.color,
           icon: largestCatRow.icon,
         } : null,
@@ -263,6 +273,7 @@ analyticsRouter.get('/spending-overview', async (req: AuthRequest, res: Response
         const y = d.getFullYear();
         const m = d.getMonth() + 1;
         const mStr = `${y}-${String(m).padStart(2, '0')}`;
+        const daysInMonth = new Date(y, m, 0).getDate();
         const label = d.toLocaleDateString('en-US', { month: 'short' });
 
         const row = await db.prepare(`
@@ -271,10 +282,10 @@ analyticsRouter.get('/spending-overview', async (req: AuthRequest, res: Response
             COALESCE(SUM(CASE WHEN type = 'EXPENSE' THEN amount ELSE 0 END), 0) as exp
           FROM transactions
           WHERE user_id = ? AND date >= ? AND date <= ?
-        `).get(userId, `${mStr}-01`, `${mStr}-31`) as any;
+        `).get(userId, `${mStr}-01`, `${mStr}-${String(daysInMonth).padStart(2, '0')}`) as any;
 
-        const inc = row?.inc || 0;
-        const exp = row?.exp || 0;
+        const inc = Number(row?.inc || 0);
+        const exp = Number(row?.exp || 0);
         chartData.push({ label, income: inc, expense: exp, net: inc - exp });
       }
     }

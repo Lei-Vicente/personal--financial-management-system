@@ -12,10 +12,23 @@ reportRouter.get('/summary', async (req: AuthRequest, res: Response) => {
     const { type = 'monthly', year, month } = req.query;
 
     const today = new Date();
-    const targetYear = year ? parseInt(String(year), 10) : today.getFullYear();
-    const targetMonth = month ? parseInt(String(month), 10) : (today.getMonth() + 1);
-    const monthPad = String(targetMonth).padStart(2, '0');
+    let targetYear = year ? parseInt(String(year), 10) : today.getFullYear();
+    let targetMonth = today.getMonth() + 1;
 
+    if (month) {
+      const monthStr = String(month);
+      if (monthStr.includes('-')) {
+        const parts = monthStr.split('-');
+        if (parts.length === 2) {
+          targetYear = parseInt(parts[0], 10) || targetYear;
+          targetMonth = parseInt(parts[1], 10) || targetMonth;
+        }
+      } else {
+        targetMonth = parseInt(monthStr, 10) || targetMonth;
+      }
+    }
+
+    const monthPad = String(targetMonth).padStart(2, '0');
     let startDate = `${targetYear}-01-01`;
     let endDate = `${targetYear}-12-31`;
 
@@ -35,8 +48,8 @@ reportRouter.get('/summary', async (req: AuthRequest, res: Response) => {
       WHERE user_id = ? AND date >= ? AND date <= ?
     `).get(userId, startDate, endDate) as any;
 
-    const totalIncome = totals?.total_income || 0;
-    const totalExpense = totals?.total_expense || 0;
+    const totalIncome = Number(totals?.total_income) || 0;
+    const totalExpense = Number(totals?.total_expense) || 0;
     const netAmount = totalIncome - totalExpense;
     const savingsRate = totalIncome > 0 ? Math.max(0, Math.round(((totalIncome - totalExpense) / totalIncome) * 100)) : 0;
 
@@ -62,14 +75,18 @@ reportRouter.get('/summary', async (req: AuthRequest, res: Response) => {
     `).get(userId, startDate, endDate) as any;
 
     // Category breakdown
-    const categoryBreakdown = await db.prepare(`
+    const categoryBreakdown = (await db.prepare(`
       SELECT c.name, c.color, c.icon, c.type, SUM(t.amount) as amount, COUNT(t.id) as count
       FROM transactions t
       JOIN categories c ON t.category_id = c.id
       WHERE t.user_id = ? AND t.date >= ? AND t.date <= ?
       GROUP BY c.id, c.name, c.color, c.icon, c.type
       ORDER BY amount DESC
-    `).all(userId, startDate, endDate) as any[];
+    `).all(userId, startDate, endDate) as any[]).map(c => ({
+      ...c,
+      amount: Number(c.amount) || 0,
+      count: Number(c.count) || 0,
+    }));
 
     // Monthly breakdown if yearly report
     let monthlyBreakdown = null;
@@ -90,11 +107,13 @@ reportRouter.get('/summary', async (req: AuthRequest, res: Response) => {
         `).get(userId, mStart, mEnd) as any;
 
         const mName = new Date(targetYear, m - 1, 1).toLocaleDateString('en-US', { month: 'short' });
+        const inc = Number(mRow?.income) || 0;
+        const exp = Number(mRow?.expense) || 0;
         monthlyBreakdown.push({
           month: mName,
-          income: mRow?.income || 0,
-          expense: mRow?.expense || 0,
-          net: (mRow?.income || 0) - (mRow?.expense || 0),
+          income: inc,
+          expense: exp,
+          net: inc - exp,
         });
       }
     }
@@ -112,9 +131,15 @@ reportRouter.get('/summary', async (req: AuthRequest, res: Response) => {
         total_expense: totalExpense,
         net_amount: netAmount,
         savings_rate: savingsRate,
-        transaction_count: totals?.total_transactions || 0,
-        top_category: topCategory || null,
-        largest_expense: largestExpense || null,
+        transaction_count: Number(totals?.total_transactions) || 0,
+        top_category: topCategory ? {
+          ...topCategory,
+          amount: Number(topCategory.amount) || 0,
+        } : null,
+        largest_expense: largestExpense ? {
+          ...largestExpense,
+          amount: Number(largestExpense.amount) || 0,
+        } : null,
       },
       categories: categoryBreakdown,
       monthly_breakdown: monthlyBreakdown,
