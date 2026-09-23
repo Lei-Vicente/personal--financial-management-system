@@ -68,27 +68,37 @@ export const handleDashboardAnalytics = async (req: AuthRequest, res: Response) 
     const balanceChangePct = prevNet !== 0 ? Math.round(((curNet - prevNet) / Math.abs(prevNet)) * 100 * 10) / 10 : 0;
 
     // 4. Largest expense category this month
-    const largestCatRow = await db.prepare(`
-      SELECT c.name, c.color, c.icon, SUM(t.amount) as total
-      FROM transactions t
-      JOIN categories c ON t.category_id = c.id
-      WHERE t.user_id = ? AND t.type = 'EXPENSE' AND t.date >= ? AND t.date <= ?
-      GROUP BY c.id, c.name, c.color, c.icon
-      ORDER BY total DESC
-      LIMIT 1
-    `).get(userId, curStartDate, curEndDate) as any;
+    let largestCatRow = null;
+    try {
+      largestCatRow = await db.prepare(`
+        SELECT c.name, c.color, c.icon, SUM(t.amount) as total
+        FROM transactions t
+        JOIN categories c ON t.category_id = c.id
+        WHERE t.user_id = ? AND t.type = 'EXPENSE' AND t.date >= ? AND t.date <= ?
+        GROUP BY c.id, c.name, c.color, c.icon
+        ORDER BY SUM(t.amount) DESC
+        LIMIT 1
+      `).get(userId, curStartDate, curEndDate) as any;
+    } catch (e) {
+      console.warn('Could not query largest category:', e);
+    }
 
     // 5. Category breakdown for current month
-    const categoryBreakdown = await db.prepare(`
-      SELECT c.id, c.name, c.color, c.icon, SUM(t.amount) as total, COUNT(t.id) as count
-      FROM transactions t
-      JOIN categories c ON t.category_id = c.id
-      WHERE t.user_id = ? AND t.type = 'EXPENSE' AND t.date >= ? AND t.date <= ?
-      GROUP BY c.id, c.name, c.color, c.icon
-      ORDER BY total DESC
-    `).all(userId, curStartDate, curEndDate) as any[];
+    let categoryBreakdown: any[] = [];
+    try {
+      categoryBreakdown = await db.prepare(`
+        SELECT c.id, c.name, c.color, c.icon, SUM(t.amount) as total, COUNT(t.id) as count
+        FROM transactions t
+        JOIN categories c ON t.category_id = c.id
+        WHERE t.user_id = ? AND t.type = 'EXPENSE' AND t.date >= ? AND t.date <= ?
+        GROUP BY c.id, c.name, c.color, c.icon
+        ORDER BY SUM(t.amount) DESC
+      `).all(userId, curStartDate, curEndDate) as any[];
+    } catch (e) {
+      console.warn('Could not query category breakdown:', e);
+    }
 
-    const enrichedCategoryBreakdown = categoryBreakdown.map(c => {
+    const enrichedCategoryBreakdown = (categoryBreakdown || []).map(c => {
       const total = Number(c.total) || 0;
       return {
         ...c,
@@ -124,7 +134,10 @@ export const handleDashboardAnalytics = async (req: AuthRequest, res: Response) 
     });
   } catch (error: any) {
     console.error('Dashboard analytics error:', error);
-    return res.status(500).json({ error: 'Failed to compute dashboard metrics.' });
+    return res.status(500).json({
+      error: 'Failed to compute dashboard metrics.',
+      details: error?.message || String(error),
+    });
   }
 };
 
