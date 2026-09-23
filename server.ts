@@ -1,7 +1,6 @@
 import express from 'express';
 import path from 'path';
 import cookieParser from 'cookie-parser';
-import { createServer as createViteServer } from 'vite';
 import { authRouter, meRouter, profileRouter, settingsRouter } from './server/routes/authRoutes.ts';
 import { transactionRouter } from './server/routes/transactionRoutes.ts';
 import { categoryRouter } from './server/routes/categoryRoutes.ts';
@@ -62,6 +61,7 @@ async function startServer() {
 
   // Vite middleware for development vs static build in production
   if (process.env.NODE_ENV !== 'production' && !process.env.VERCEL) {
+    const { createServer: createViteServer } = await import('vite');
     const vite = await createViteServer({
       server: { middlewareMode: true },
       appType: 'spa',

@@ -1,9 +1,10 @@
-import { DatabaseSync } from 'node:sqlite';
 import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
+import { createRequire } from 'node:module';
 import pg from 'pg';
 
+const req = typeof require === 'function' ? require : createRequire(path.join(process.cwd(), 'package.json'));
 const { Pool } = pg;
 
 // Determine database mode:
@@ -13,7 +14,7 @@ const rawDatabaseUrl = process.env.DATABASE_URL || '';
 export const isPostgres = rawDatabaseUrl.startsWith('postgres://') || rawDatabaseUrl.startsWith('postgresql://');
 
 let pgPool: pg.Pool | null = null;
-let sqliteDb: DatabaseSync | null = null;
+let sqliteDb: any = null;
 
 if (isPostgres) {
   pgPool = new Pool({
@@ -32,8 +33,15 @@ if (isPostgres) {
     fs.mkdirSync(dataDir, { recursive: true });
   }
 
-  sqliteDb = new DatabaseSync(dbPath);
-  sqliteDb.exec(`
+  try {
+    const { DatabaseSync } = req('node:sqlite');
+    sqliteDb = new DatabaseSync(dbPath);
+  } catch (err) {
+    console.error('Failed to initialize SQLite. Ensure Node.js >= 22.5.0 or use PostgreSQL:', err);
+  }
+
+  if (sqliteDb) {
+    sqliteDb.exec(`
     PRAGMA journal_mode = WAL;
     PRAGMA foreign_keys = ON;
 
@@ -202,7 +210,8 @@ if (isPostgres) {
   } catch (e) {
     // Column already exists or table freshly initialized
   }
-  console.log('Database connected: SQLite (Local development)');
+    console.log('Database connected: SQLite (Local development)');
+  }
 }
 
 // Convert SQLite '?' parameter placeholders to PostgreSQL '$1, $2, ...' syntax
