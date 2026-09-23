@@ -20,14 +20,25 @@ This guide walks you through deploying your **Personal Financial Management Syst
 5. You should see `Success. No rows returned`. All tables, constraints, foreign keys, indexes, and Row Level Security (RLS) are now ready.
 
 ### Step 1.3: Retrieve Connection String
-1. Go to **Project Settings** (gear icon at the bottom left) → **Database**.
-2. Under **Connection string**, select the **URI** tab.
-3. Select **Mode: Transaction** (recommended for serverless Vercel) or **Session**.
-4. Copy the connection URI:
-   ```text
-   postgresql://postgres:[YOUR-PASSWORD]@db.[YOUR-PROJECT-REF].supabase.co:5432/postgres?sslmode=require
-   ```
-   *(Be sure to replace `[YOUR-PASSWORD]` with your actual database password).*
+In the updated Supabase Dashboard, you can find your connection string in either of two places:
+
+**Method A (Fastest - Top Bar):**
+1. At the very top of the Supabase dashboard (next to your project name), click the **"Connect"** button.
+2. In the dialog that opens, select the **"URI"** tab.
+3. Choose **Mode: Transaction** (recommended for serverless Vercel on port 6543) or **Session**.
+4. Copy the connection string.
+
+**Method B (Project Settings):**
+1. Click the **Project Settings** (gear icon at the bottom-left navigation).
+2. Under the **"Configuration"** section in the settings sidebar, click **"Database"**.
+3. Scroll down to the **"Connection string"** box and select the **URI** tab.
+4. Copy the URI.
+
+The copied URI will look like:
+```text
+postgresql://postgres.[YOUR-PROJECT-REF]:[YOUR-PASSWORD]@aws-0-[REGION].pooler.supabase.com:6543/postgres?sslmode=require
+```
+*(Replace `[YOUR-PASSWORD]` with the database password you set during project creation).*
 
 ---
 
