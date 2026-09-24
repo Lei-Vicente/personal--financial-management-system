@@ -16,9 +16,9 @@ import { TransactionItem } from '../components/InteractiveCards.tsx';
 interface TransactionsViewProps {
   user: User;
   categories: Category[];
-  onOpenAddTransaction: (type?: 'INCOME' | 'EXPENSE') => void;
+  onOpenAddTransaction: (type?: 'INCOME' | 'EXPENSE' | 'TRANSFER') => void;
   onEditTransaction: (trans: Transaction) => void;
-  initialFilter?: { type?: 'ALL' | 'INCOME' | 'EXPENSE'; categoryId?: string };
+  initialFilter?: { type?: 'ALL' | 'INCOME' | 'EXPENSE' | 'TRANSFER'; categoryId?: string };
   dataVersion?: number;
   onDataChanged?: () => void;
 }
@@ -41,7 +41,7 @@ export const TransactionsView: React.FC<TransactionsViewProps> = ({
 
   // Filters & Sorting state
   const [search, setSearch] = useState('');
-  const [typeFilter, setTypeFilter] = useState<'ALL' | 'INCOME' | 'EXPENSE'>(initialFilter?.type || 'ALL');
+  const [typeFilter, setTypeFilter] = useState<'ALL' | 'INCOME' | 'EXPENSE' | 'TRANSFER'>(initialFilter?.type || 'ALL');
   const [categoryFilter, setCategoryFilter] = useState(initialFilter?.categoryId || 'ALL');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
@@ -205,6 +205,7 @@ export const TransactionsView: React.FC<TransactionsViewProps> = ({
               <option value="ALL">All Transaction Types</option>
               <option value="EXPENSE">Expense Only</option>
               <option value="INCOME">Income Only</option>
+              <option value="TRANSFER">Transfer Only (⇄)</option>
             </select>
           </div>
 

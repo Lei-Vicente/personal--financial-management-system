@@ -104,8 +104,9 @@ if (isPostgres) {
       id TEXT PRIMARY KEY,
       user_id TEXT NOT NULL,
       account_id TEXT,
-      category_id TEXT NOT NULL,
-      type TEXT NOT NULL CHECK(type IN ('EXPENSE', 'INCOME')),
+      to_account_id TEXT,
+      category_id TEXT,
+      type TEXT NOT NULL CHECK(type IN ('EXPENSE', 'INCOME', 'TRANSFER')),
       amount REAL NOT NULL CHECK(amount > 0),
       date TEXT NOT NULL,
       description TEXT NOT NULL,
@@ -115,7 +116,8 @@ if (isPostgres) {
       updated_at TEXT NOT NULL,
       FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE,
       FOREIGN KEY(account_id) REFERENCES accounts(id) ON DELETE SET NULL,
-      FOREIGN KEY(category_id) REFERENCES categories(id) ON DELETE RESTRICT
+      FOREIGN KEY(to_account_id) REFERENCES accounts(id) ON DELETE SET NULL,
+      FOREIGN KEY(category_id) REFERENCES categories(id) ON DELETE SET NULL
     );
 
     CREATE TABLE IF NOT EXISTS budgets (
@@ -156,6 +158,47 @@ if (isPostgres) {
       FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
     );
 
+    CREATE TABLE IF NOT EXISTS bills (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL,
+      name TEXT NOT NULL,
+      amount REAL NOT NULL CHECK(amount > 0),
+      due_date TEXT NOT NULL,
+      frequency TEXT DEFAULT 'ONCE' CHECK(frequency IN ('ONCE', 'WEEKLY', 'MONTHLY', 'YEARLY')),
+      category_id TEXT,
+      account_id TEXT,
+      is_paid INTEGER DEFAULT 0,
+      paid_date TEXT,
+      notes TEXT,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL,
+      FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE,
+      FOREIGN KEY(category_id) REFERENCES categories(id) ON DELETE SET NULL,
+      FOREIGN KEY(account_id) REFERENCES accounts(id) ON DELETE SET NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS recurring_transactions (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL,
+      account_id TEXT,
+      category_id TEXT NOT NULL,
+      type TEXT NOT NULL CHECK(type IN ('EXPENSE', 'INCOME')),
+      amount REAL NOT NULL CHECK(amount > 0),
+      description TEXT NOT NULL,
+      frequency TEXT NOT NULL CHECK(frequency IN ('DAILY', 'WEEKLY', 'MONTHLY', 'YEARLY')),
+      start_date TEXT NOT NULL,
+      end_date TEXT,
+      next_date TEXT NOT NULL,
+      is_active INTEGER DEFAULT 1,
+      payment_method TEXT DEFAULT 'Cash',
+      notes TEXT,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL,
+      FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE,
+      FOREIGN KEY(account_id) REFERENCES accounts(id) ON DELETE SET NULL,
+      FOREIGN KEY(category_id) REFERENCES categories(id) ON DELETE RESTRICT
+    );
+
     CREATE TABLE IF NOT EXISTS sessions (
       id TEXT PRIMARY KEY,
       user_id TEXT NOT NULL,
@@ -190,30 +233,86 @@ if (isPostgres) {
     CREATE INDEX IF NOT EXISTS idx_trans_user_date ON transactions(user_id, date);
     CREATE INDEX IF NOT EXISTS idx_trans_category ON transactions(category_id);
     CREATE INDEX IF NOT EXISTS idx_cat_user ON categories(user_id);
+    CREATE INDEX IF NOT EXISTS idx_accounts_user ON accounts(user_id);
     CREATE INDEX IF NOT EXISTS idx_budgets_user_month ON budgets(user_id, month);
     CREATE INDEX IF NOT EXISTS idx_budgets_category ON budgets(category_id);
     CREATE INDEX IF NOT EXISTS idx_goals_user ON savings_goals(user_id);
     CREATE INDEX IF NOT EXISTS idx_contrib_goal ON savings_contributions(goal_id, user_id);
+    CREATE INDEX IF NOT EXISTS idx_bills_user ON bills(user_id, due_date);
+    CREATE INDEX IF NOT EXISTS idx_recurring_user ON recurring_transactions(user_id, is_active);
+    CREATE INDEX IF NOT EXISTS idx_recurring_next ON recurring_transactions(next_date);
     CREATE INDEX IF NOT EXISTS idx_sessions_token ON sessions(token);
     CREATE INDEX IF NOT EXISTS idx_verif_tokens ON verification_tokens(token);
     CREATE INDEX IF NOT EXISTS idx_pwreset_tokens ON password_reset_tokens(token);
   `);
 
-  // Migration helper for existing local SQLite databases: add account_id to transactions if missing
+  // Migration helper for existing local SQLite databases: upgrade transactions table to include TRANSFER and to_account_id
   try {
-    const cols = sqliteDb.prepare("PRAGMA table_info(transactions)").all() as any[];
-    const hasAccountId = cols.some(c => c.name === 'account_id');
-    if (!hasAccountId) {
+    const tableInfo = sqliteDb.prepare("SELECT sql FROM sqlite_master WHERE type='table' AND name='transactions'").get() as any;
+    if (tableInfo && tableInfo.sql && !tableInfo.sql.includes('TRANSFER')) {
+      // Rebuild table to update CHECK constraint and ensure to_account_id exists
       sqliteDb.exec(`
-        ALTER TABLE transactions ADD COLUMN account_id TEXT REFERENCES accounts(id) ON DELETE SET NULL;
+        PRAGMA foreign_keys = OFF;
+        CREATE TABLE transactions_migrated (
+          id TEXT PRIMARY KEY,
+          user_id TEXT NOT NULL,
+          account_id TEXT,
+          to_account_id TEXT,
+          category_id TEXT,
+          type TEXT NOT NULL CHECK(type IN ('EXPENSE', 'INCOME', 'TRANSFER')),
+          amount REAL NOT NULL CHECK(amount > 0),
+          date TEXT NOT NULL,
+          description TEXT NOT NULL,
+          payment_method TEXT DEFAULT 'Cash',
+          notes TEXT,
+          created_at TEXT NOT NULL,
+          updated_at TEXT NOT NULL,
+          FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE,
+          FOREIGN KEY(account_id) REFERENCES accounts(id) ON DELETE SET NULL,
+          FOREIGN KEY(to_account_id) REFERENCES accounts(id) ON DELETE SET NULL,
+          FOREIGN KEY(category_id) REFERENCES categories(id) ON DELETE SET NULL
+        );
       `);
+
+      const cols = sqliteDb.prepare("PRAGMA table_info(transactions)").all() as any[];
+      const colNames = cols.map(c => c.name);
+      const hasAccountId = colNames.includes('account_id');
+      const hasToAccountId = colNames.includes('to_account_id');
+
+      const selectCols = [
+        'id', 'user_id',
+        hasAccountId ? 'account_id' : 'NULL as account_id',
+        hasToAccountId ? 'to_account_id' : 'NULL as to_account_id',
+        'category_id', 'type', 'amount', 'date', 'description', 'payment_method', 'notes', 'created_at', 'updated_at'
+      ].join(', ');
+
+      sqliteDb.exec(`
+        INSERT INTO transactions_migrated (id, user_id, account_id, to_account_id, category_id, type, amount, date, description, payment_method, notes, created_at, updated_at)
+        SELECT ${selectCols} FROM transactions;
+        DROP TABLE transactions;
+        ALTER TABLE transactions_migrated RENAME TO transactions;
+        PRAGMA foreign_keys = ON;
+      `);
+    } else {
+      // Ensure account_id and to_account_id columns exist if table was created with TRANSFER already
+      const cols = sqliteDb.prepare("PRAGMA table_info(transactions)").all() as any[];
+      const hasAccountId = cols.some(c => c.name === 'account_id');
+      if (!hasAccountId) {
+        sqliteDb.exec(`ALTER TABLE transactions ADD COLUMN account_id TEXT REFERENCES accounts(id) ON DELETE SET NULL;`);
+      }
+      const hasToAccountId = cols.some(c => c.name === 'to_account_id');
+      if (!hasToAccountId) {
+        sqliteDb.exec(`ALTER TABLE transactions ADD COLUMN to_account_id TEXT REFERENCES accounts(id) ON DELETE SET NULL;`);
+      }
     }
+
     sqliteDb.exec(`
       CREATE INDEX IF NOT EXISTS idx_trans_account ON transactions(account_id);
+      CREATE INDEX IF NOT EXISTS idx_trans_to_account ON transactions(to_account_id);
       CREATE INDEX IF NOT EXISTS idx_accounts_user ON accounts(user_id);
     `);
   } catch (e) {
-    // Column already exists or table freshly initialized
+    console.error('SQLite schema migration error:', e);
   }
     console.log('Database connected: SQLite (Local development)');
   }

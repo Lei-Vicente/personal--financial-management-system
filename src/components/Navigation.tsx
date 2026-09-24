@@ -12,11 +12,12 @@ import {
   X,
   Wallet,
   ChevronUp,
-  ChevronDown
+  ChevronDown,
+  CalendarClock
 } from 'lucide-react';
 import { User } from '../types.ts';
 
-export type NavTab = 'dashboard' | 'transactions' | 'budgets' | 'savings' | 'analytics' | 'reports' | 'settings';
+export type NavTab = 'dashboard' | 'transactions' | 'budgets' | 'savings' | 'bills' | 'analytics' | 'reports' | 'settings';
 
 interface NavigationProps {
   currentTab: NavTab;
@@ -63,6 +64,7 @@ export const Navigation: React.FC<NavigationProps> = ({
     { id: 'transactions', label: 'Transactions', icon: <Receipt className="w-5 h-5" /> },
     { id: 'budgets', label: 'Budgets', icon: <PieChart className="w-5 h-5" /> },
     { id: 'savings', label: 'Savings & Wallets', icon: <PiggyBank className="w-5 h-5" /> },
+    { id: 'bills', label: 'Bills & Recurring', icon: <CalendarClock className="w-5 h-5" /> },
     { id: 'analytics', label: 'Analytics & Reports', icon: <BarChart3 className="w-5 h-5" /> },
   ];
 

@@ -71,8 +71,9 @@ CREATE TABLE IF NOT EXISTS transactions (
   id TEXT PRIMARY KEY,
   user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   account_id TEXT REFERENCES accounts(id) ON DELETE SET NULL,
-  category_id TEXT NOT NULL REFERENCES categories(id) ON DELETE RESTRICT,
-  type TEXT NOT NULL CHECK (type IN ('EXPENSE', 'INCOME')),
+  to_account_id TEXT REFERENCES accounts(id) ON DELETE SET NULL,
+  category_id TEXT REFERENCES categories(id) ON DELETE SET NULL,
+  type TEXT NOT NULL CHECK (type IN ('EXPENSE', 'INCOME', 'TRANSFER')),
   amount NUMERIC(15, 2) NOT NULL CHECK (amount > 0),
   date DATE NOT NULL,
   description TEXT NOT NULL,
@@ -125,7 +126,48 @@ CREATE TABLE IF NOT EXISTS savings_contributions (
 );
 
 -- -----------------------------------------------------------------------------
--- 9. SESSIONS TABLE (For Secure Cookie Authentication)
+-- 9. BILLS TABLE
+-- -----------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS bills (
+  id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  name TEXT NOT NULL,
+  amount NUMERIC(15, 2) NOT NULL CHECK (amount > 0),
+  due_date DATE NOT NULL,
+  frequency TEXT DEFAULT 'ONCE' CHECK (frequency IN ('ONCE', 'WEEKLY', 'MONTHLY', 'YEARLY')),
+  category_id TEXT REFERENCES categories(id) ON DELETE SET NULL,
+  account_id TEXT REFERENCES accounts(id) ON DELETE SET NULL,
+  is_paid INTEGER DEFAULT 0,
+  paid_date DATE,
+  notes TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- -----------------------------------------------------------------------------
+-- 10. RECURRING TRANSACTIONS TABLE
+-- -----------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS recurring_transactions (
+  id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  account_id TEXT REFERENCES accounts(id) ON DELETE SET NULL,
+  category_id TEXT NOT NULL REFERENCES categories(id) ON DELETE RESTRICT,
+  type TEXT NOT NULL CHECK (type IN ('EXPENSE', 'INCOME')),
+  amount NUMERIC(15, 2) NOT NULL CHECK (amount > 0),
+  description TEXT NOT NULL,
+  frequency TEXT NOT NULL CHECK (frequency IN ('DAILY', 'WEEKLY', 'MONTHLY', 'YEARLY')),
+  start_date DATE NOT NULL,
+  end_date DATE,
+  next_date DATE NOT NULL,
+  is_active INTEGER DEFAULT 1,
+  payment_method TEXT DEFAULT 'Cash',
+  notes TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- -----------------------------------------------------------------------------
+-- 11. SESSIONS TABLE (For Secure Cookie Authentication)
 -- -----------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS sessions (
   id TEXT PRIMARY KEY,
@@ -138,7 +180,7 @@ CREATE TABLE IF NOT EXISTS sessions (
 );
 
 -- -----------------------------------------------------------------------------
--- 10. TOKEN TABLES (Email Verification & Password Reset)
+-- 12. TOKEN TABLES (Email Verification & Password Reset)
 -- -----------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS verification_tokens (
   id TEXT PRIMARY KEY,
@@ -159,23 +201,27 @@ CREATE TABLE IF NOT EXISTS password_reset_tokens (
 );
 
 -- -----------------------------------------------------------------------------
--- 11. PERFORMANCE INDEXES
+-- 13. PERFORMANCE INDEXES
 -- -----------------------------------------------------------------------------
 CREATE INDEX IF NOT EXISTS idx_trans_user_date ON transactions(user_id, date DESC);
 CREATE INDEX IF NOT EXISTS idx_trans_category ON transactions(category_id);
 CREATE INDEX IF NOT EXISTS idx_trans_account ON transactions(account_id);
+CREATE INDEX IF NOT EXISTS idx_trans_to_account ON transactions(to_account_id);
 CREATE INDEX IF NOT EXISTS idx_cat_user ON categories(user_id);
 CREATE INDEX IF NOT EXISTS idx_accounts_user ON accounts(user_id);
 CREATE INDEX IF NOT EXISTS idx_budgets_user_month ON budgets(user_id, month);
 CREATE INDEX IF NOT EXISTS idx_budgets_category ON budgets(category_id);
 CREATE INDEX IF NOT EXISTS idx_goals_user ON savings_goals(user_id);
 CREATE INDEX IF NOT EXISTS idx_contrib_goal ON savings_contributions(goal_id, user_id);
+CREATE INDEX IF NOT EXISTS idx_bills_user ON bills(user_id, due_date);
+CREATE INDEX IF NOT EXISTS idx_recurring_user ON recurring_transactions(user_id, is_active);
+CREATE INDEX IF NOT EXISTS idx_recurring_next ON recurring_transactions(next_date);
 CREATE INDEX IF NOT EXISTS idx_sessions_token ON sessions(token);
 CREATE INDEX IF NOT EXISTS idx_verif_tokens ON verification_tokens(token);
 CREATE INDEX IF NOT EXISTS idx_pwreset_tokens ON password_reset_tokens(token);
 
 -- -----------------------------------------------------------------------------
--- 12. ROW LEVEL SECURITY (RLS) POLICIES
+-- 14. ROW LEVEL SECURITY (RLS) POLICIES
 -- -----------------------------------------------------------------------------
 ALTER TABLE users ENABLE ROW LEVEL SECURITY;
 ALTER TABLE user_settings ENABLE ROW LEVEL SECURITY;
@@ -185,6 +231,14 @@ ALTER TABLE transactions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE budgets ENABLE ROW LEVEL SECURITY;
 ALTER TABLE savings_goals ENABLE ROW LEVEL SECURITY;
 ALTER TABLE savings_contributions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE bills ENABLE ROW LEVEL SECURITY;
+ALTER TABLE recurring_transactions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE sessions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE verification_tokens ENABLE ROW LEVEL SECURITY;
 ALTER TABLE password_reset_tokens ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Users can only access their own bills" ON bills
+  FOR ALL USING (auth.uid()::text = user_id);
+
+CREATE POLICY "Users can only access their own recurring transactions" ON recurring_transactions
+  FOR ALL USING (auth.uid()::text = user_id);

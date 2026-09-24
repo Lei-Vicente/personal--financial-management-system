@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { User, Category, Transaction, Budget, SavingsGoal } from './types.ts';
+import { User, Category, Transaction, Budget, SavingsGoal, Account } from './types.ts';
 import { apiFetch, setStoredToken } from './utils.tsx';
 import { Navigation, NavTab } from './components/Navigation.tsx';
 import { AuthView } from './components/AuthView.tsx';
@@ -9,6 +9,7 @@ import { TransactionsView } from './views/TransactionsView.tsx';
 import { BudgetsView } from './views/BudgetsView.tsx';
 import { SavingsView } from './views/SavingsView.tsx';
 import { AnalyticsView } from './views/AnalyticsView.tsx';
+import { BillsView } from './views/BillsView.tsx';
 import { SettingsView } from './views/SettingsView.tsx';
 import { TransactionModal } from './components/TransactionModal.tsx';
 import { BudgetModal } from './components/BudgetModal.tsx';
@@ -34,20 +35,21 @@ export default function App() {
   // App navigation state
   const [currentTab, setCurrentTab] = useState<NavTab>('dashboard');
   const [categories, setCategories] = useState<Category[]>([]);
+  const [accounts, setAccounts] = useState<Account[]>([]);
 
   // Cross-module data synchronization
   const [dataVersion, setDataVersion] = useState(0);
   const notifyDataChanged = () => {
-    setDataVersion((v) => v + 1);
+    setDataVersion((v: number) => v + 1);
   };
 
   // Cross-module filter for Transactions view
   const [transactionFilter, setTransactionFilter] = useState<{
-    type?: 'ALL' | 'INCOME' | 'EXPENSE';
+    type?: 'ALL' | 'INCOME' | 'EXPENSE' | 'TRANSFER';
     categoryId?: string;
   }>({ type: 'ALL', categoryId: 'ALL' });
 
-  const handleNavigateToTransactions = (filter?: { type?: 'ALL' | 'INCOME' | 'EXPENSE'; categoryId?: string }) => {
+  const handleNavigateToTransactions = (filter?: { type?: 'ALL' | 'INCOME' | 'EXPENSE' | 'TRANSFER'; categoryId?: string }) => {
     if (filter) {
       setTransactionFilter(filter);
     }
@@ -56,7 +58,7 @@ export default function App() {
 
   // Modal states
   const [isTransModalOpen, setIsTransModalOpen] = useState(false);
-  const [transModalType, setTransModalType] = useState<'INCOME' | 'EXPENSE'>('EXPENSE');
+  const [transModalType, setTransModalType] = useState<'INCOME' | 'EXPENSE' | 'TRANSFER'>('EXPENSE');
   const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
 
   const [isBudgetModalOpen, setIsBudgetModalOpen] = useState(false);
@@ -90,11 +92,21 @@ export default function App() {
     }
   };
 
+  const loadAccounts = async () => {
+    try {
+      const res = await apiFetch('/api/accounts');
+      setAccounts(res.accounts || []);
+    } catch (err) {
+      console.error('Failed to load accounts:', err);
+    }
+  };
+
   useEffect(() => {
     if (currentUser) {
       loadCategories();
+      loadAccounts();
     }
-  }, [currentUser]);
+  }, [currentUser, dataVersion]);
 
   const handleLogout = async () => {
     try {
@@ -109,7 +121,7 @@ export default function App() {
   };
 
   // Open modal helpers
-  const handleOpenAddTransaction = (type: 'INCOME' | 'EXPENSE' = 'EXPENSE') => {
+  const handleOpenAddTransaction = (type: 'INCOME' | 'EXPENSE' | 'TRANSFER' = 'EXPENSE') => {
     setEditingTransaction(null);
     setTransModalType(type);
     setIsTransModalOpen(true);
@@ -213,6 +225,16 @@ export default function App() {
             onOpenAddContribution={(goal) => setSelectedGoalForContrib(goal)}
             dataVersion={dataVersion}
             onDataChanged={notifyDataChanged}
+          />
+        )}
+
+        {currentTab === 'bills' && (
+          <BillsView
+            user={currentUser}
+            categories={categories}
+            accounts={accounts}
+            dataVersion={dataVersion}
+            onRefreshData={notifyDataChanged}
           />
         )}
 

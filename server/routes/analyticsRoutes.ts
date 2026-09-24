@@ -38,9 +38,17 @@ export const handleDashboardAnalytics = async (req: AuthRequest, res: Response) 
       db.prepare(`
         SELECT a.balance,
           COALESCE(
-            (SELECT SUM(CASE WHEN t.type = 'INCOME' THEN t.amount ELSE -t.amount END)
+            (SELECT SUM(
+              CASE 
+                WHEN t.type = 'INCOME' THEN t.amount 
+                WHEN t.type = 'EXPENSE' THEN -t.amount
+                WHEN t.type = 'TRANSFER' AND t.account_id = a.id THEN -t.amount
+                WHEN t.type = 'TRANSFER' AND t.to_account_id = a.id THEN t.amount
+                ELSE 0
+              END
+            )
              FROM transactions t
-             WHERE t.account_id = a.id AND t.user_id = a.user_id), 0
+             WHERE (t.account_id = a.id OR t.to_account_id = a.id) AND t.user_id = a.user_id), 0
           ) as net_activity
         FROM accounts a
         WHERE a.user_id = ?

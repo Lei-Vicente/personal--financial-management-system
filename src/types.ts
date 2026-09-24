@@ -44,15 +44,69 @@ export interface Transaction {
   account_name?: string;
   account_type?: string;
   account_icon?: string;
+  to_account_id?: string | null;
+  to_account_name?: string;
+  to_account_type?: string;
+  to_account_icon?: string;
+  category_id?: string | null;
+  category_name?: string;
+  category_icon?: string;
+  category_color?: string;
+  type: 'EXPENSE' | 'INCOME' | 'TRANSFER';
+  amount: number;
+  date: string;
+  description: string;
+  payment_method: string;
+  notes?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface Bill {
+  id: string;
+  user_id: string;
+  name: string;
+  amount: number;
+  due_date: string;
+  frequency: 'ONCE' | 'WEEKLY' | 'MONTHLY' | 'YEARLY';
+  category_id?: string | null;
+  category_name?: string;
+  category_icon?: string;
+  category_color?: string;
+  account_id?: string | null;
+  account_name?: string;
+  account_icon?: string;
+  account_type?: string;
+  is_paid: boolean;
+  paid_date?: string | null;
+  notes?: string;
+  is_overdue?: boolean;
+  is_due_soon?: boolean;
+  days_until_due?: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface RecurringTransaction {
+  id: string;
+  user_id: string;
+  account_id?: string | null;
+  account_name?: string;
+  account_icon?: string;
+  account_type?: string;
   category_id: string;
   category_name?: string;
   category_icon?: string;
   category_color?: string;
   type: 'EXPENSE' | 'INCOME';
   amount: number;
-  date: string;
   description: string;
-  payment_method: string;
+  frequency: 'DAILY' | 'WEEKLY' | 'MONTHLY' | 'YEARLY';
+  start_date: string;
+  end_date?: string | null;
+  next_date: string;
+  is_active: boolean;
+  payment_method?: string;
   notes?: string;
   created_at: string;
   updated_at: string;

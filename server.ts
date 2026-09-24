@@ -9,6 +9,8 @@ import { savingsRouter } from './server/routes/savingsRoutes.ts';
 import { accountRouter } from './server/routes/accountRoutes.ts';
 import { analyticsRouter, handleDashboardAnalytics } from './server/routes/analyticsRoutes.ts';
 import { reportRouter } from './server/routes/reportsRoutes.ts';
+import { billRouter } from './server/routes/billRoutes.ts';
+import { recurringRouter } from './server/routes/recurringRoutes.ts';
 import { requireAuth } from './server/auth.ts';
 
 export function createExpressApp() {
@@ -35,6 +37,8 @@ export function createExpressApp() {
   app.use('/api/budgets', budgetRouter);
   app.use('/api/savings-goals', savingsRouter);
   app.use('/api/accounts', accountRouter);
+  app.use('/api/bills', billRouter);
+  app.use('/api/recurring-transactions', recurringRouter);
   app.use('/api/analytics', analyticsRouter);
   app.use('/api/reports', reportRouter);
 

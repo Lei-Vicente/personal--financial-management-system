@@ -29,7 +29,7 @@ transactionRouter.get('/', async (req: AuthRequest, res: Response) => {
     const conditions: string[] = ['t.user_id = ?'];
     const params: any[] = [userId];
 
-    if (type && (type === 'INCOME' || type === 'EXPENSE')) {
+    if (type && (type === 'INCOME' || type === 'EXPENSE' || type === 'TRANSFER')) {
       conditions.push('t.type = ?');
       params.push(type);
     }
@@ -37,6 +37,12 @@ transactionRouter.get('/', async (req: AuthRequest, res: Response) => {
     if (category_id && typeof category_id === 'string' && category_id !== 'all') {
       conditions.push('t.category_id = ?');
       params.push(category_id);
+    }
+
+    const { account_id } = req.query;
+    if (account_id && typeof account_id === 'string' && account_id !== 'all') {
+      conditions.push('(t.account_id = ? OR t.to_account_id = ?)');
+      params.push(account_id, account_id);
     }
 
     if (start_date && typeof start_date === 'string') {
@@ -78,13 +84,15 @@ transactionRouter.get('/', async (req: AuthRequest, res: Response) => {
     const direction = String(sort_order).toUpperCase() === 'ASC' ? 'ASC' : 'DESC';
 
     const dataSql = `
-      SELECT t.id, t.user_id, t.account_id, t.category_id, t.type, t.amount, t.date,
+      SELECT t.id, t.user_id, t.account_id, t.to_account_id, t.category_id, t.type, t.amount, t.date,
              t.description, t.payment_method, t.notes, t.created_at, t.updated_at,
              c.name as category_name, c.icon as category_icon, c.color as category_color,
-             a.name as account_name, a.type as account_type, a.icon as account_icon
+             a.name as account_name, a.type as account_type, a.icon as account_icon,
+             a_to.name as to_account_name, a_to.type as to_account_type, a_to.icon as to_account_icon
       FROM transactions t
       LEFT JOIN categories c ON t.category_id = c.id
       LEFT JOIN accounts a ON t.account_id = a.id
+      LEFT JOIN accounts a_to ON t.to_account_id = a_to.id
       WHERE ${whereClause}
       ORDER BY ${sortCol} ${direction}, t.created_at DESC
       LIMIT ? OFFSET ?
@@ -95,7 +103,7 @@ transactionRouter.get('/', async (req: AuthRequest, res: Response) => {
       amount: Number(r.amount) || 0,
     }));
 
-    // Overall summary sums for the current filter scope
+    // Overall summary sums for the current filter scope (Transfers do not inflate income or expense)
     const sumSql = `
       SELECT
         COALESCE(SUM(CASE WHEN t.type = 'INCOME' THEN t.amount ELSE 0 END), 0) as total_income,
@@ -137,10 +145,12 @@ transactionRouter.get('/:id', async (req: AuthRequest, res: Response) => {
 
     const row = await db.prepare(`
       SELECT t.*, c.name as category_name, c.icon as category_icon, c.color as category_color,
-             a.name as account_name, a.type as account_type
+             a.name as account_name, a.type as account_type, a.icon as account_icon,
+             a_to.name as to_account_name, a_to.type as to_account_type, a_to.icon as to_account_icon
       FROM transactions t
       LEFT JOIN categories c ON t.category_id = c.id
       LEFT JOIN accounts a ON t.account_id = a.id
+      LEFT JOIN accounts a_to ON t.to_account_id = a_to.id
       WHERE t.id = ? AND t.user_id = ?
     `).get(transId, userId) as any;
 
@@ -161,6 +171,7 @@ transactionRouter.post('/', async (req: AuthRequest, res: Response) => {
     const userId = req.user!.id;
     const {
       account_id,
+      to_account_id,
       category_id,
       type,
       amount,
@@ -170,8 +181,8 @@ transactionRouter.post('/', async (req: AuthRequest, res: Response) => {
       notes = '',
     } = req.body;
 
-    if (!type || (type !== 'INCOME' && type !== 'EXPENSE')) {
-      return res.status(400).json({ error: 'Invalid transaction type. Must be INCOME or EXPENSE.' });
+    if (!type || (type !== 'INCOME' && type !== 'EXPENSE' && type !== 'TRANSFER')) {
+      return res.status(400).json({ error: 'Invalid transaction type. Must be INCOME, EXPENSE, or TRANSFER.' });
     }
 
     const numAmount = Number(amount);
@@ -187,19 +198,55 @@ transactionRouter.post('/', async (req: AuthRequest, res: Response) => {
       return res.status(400).json({ error: 'Please provide a valid date in YYYY-MM-DD format.' });
     }
 
-    if (!category_id) {
-      return res.status(400).json({ error: 'Please select a category.' });
+    let resolvedCatId: string | null = null;
+    let catName = 'Transfer';
+    let catIcon = 'ArrowRightLeft';
+    let catColor = '#2563EB';
+
+    if (type === 'TRANSFER') {
+      if (!account_id || !to_account_id) {
+        return res.status(400).json({ error: 'Source and destination accounts are required for transfers.' });
+      }
+      if (account_id === to_account_id) {
+        return res.status(400).json({ error: 'Source and destination accounts must be different.' });
+      }
+      const [fromCheck, toCheck] = await Promise.all([
+        db.prepare('SELECT id, name FROM accounts WHERE id = ? AND user_id = ?').get(account_id, userId) as any,
+        db.prepare('SELECT id, name FROM accounts WHERE id = ? AND user_id = ?').get(to_account_id, userId) as any,
+      ]);
+      if (!fromCheck || !toCheck) {
+        return res.status(403).json({ error: 'Unauthorized: Selected account does not belong to your account.' });
+      }
+
+      if (category_id) {
+        const catCheck = await db.prepare('SELECT id, name, icon, color FROM categories WHERE id = ? AND user_id = ?').get(category_id, userId) as any;
+        if (catCheck) {
+          resolvedCatId = catCheck.id;
+          catName = catCheck.name;
+          catIcon = catCheck.icon;
+          catColor = catCheck.color;
+        }
+      }
+    } else {
+      if (!category_id) {
+        return res.status(400).json({ error: 'Please select a category.' });
+      }
+      const catCheck = await db.prepare('SELECT id, name, icon, color FROM categories WHERE id = ? AND user_id = ?').get(category_id, userId) as any;
+      if (!catCheck) {
+        return res.status(403).json({ error: 'Unauthorized: Category does not belong to your account.' });
+      }
+      resolvedCatId = catCheck.id;
+      catName = catCheck.name;
+      catIcon = catCheck.icon;
+      catColor = catCheck.color;
     }
 
-    // Authoritative verification: Category MUST belong to current user
-    const catCheck = await db.prepare('SELECT id, name, icon, color FROM categories WHERE id = ? AND user_id = ?').get(category_id, userId) as any;
-    if (!catCheck) {
-      return res.status(403).json({ error: 'Unauthorized: Category does not belong to your account.' });
-    }
-
-    // Optional account ownership verification
+    // Optional account ownership verification for regular transactions
     let accId: string | null = null;
     let accName: string | null = null;
+    let toAccId: string | null = null;
+    let toAccName: string | null = null;
+
     if (account_id) {
       const accCheck = await db.prepare('SELECT id, name FROM accounts WHERE id = ? AND user_id = ?').get(account_id, userId) as any;
       if (accCheck) {
@@ -207,23 +254,31 @@ transactionRouter.post('/', async (req: AuthRequest, res: Response) => {
         accName = accCheck.name;
       }
     }
+    if (type === 'TRANSFER' && to_account_id) {
+      const toAccCheck = await db.prepare('SELECT id, name FROM accounts WHERE id = ? AND user_id = ?').get(to_account_id, userId) as any;
+      if (toAccCheck) {
+        toAccId = toAccCheck.id;
+        toAccName = toAccCheck.name;
+      }
+    }
 
     const transId = crypto.randomUUID();
     const now = new Date().toISOString();
 
     await db.prepare(`
-      INSERT INTO transactions (id, user_id, account_id, category_id, type, amount, date, description, payment_method, notes, created_at, updated_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO transactions (id, user_id, account_id, to_account_id, category_id, type, amount, date, description, payment_method, notes, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).run(
       transId,
       userId,
       accId,
-      category_id,
+      toAccId,
+      resolvedCatId,
       type,
       numAmount,
       date,
       description.trim(),
-      payment_method || 'Cash',
+      payment_method || (type === 'TRANSFER' ? 'Transfer' : 'Cash'),
       notes ? String(notes).trim() : '',
       now,
       now
@@ -234,15 +289,17 @@ transactionRouter.post('/', async (req: AuthRequest, res: Response) => {
       user_id: userId,
       account_id: accId,
       account_name: accName,
-      category_id,
-      category_name: catCheck.name,
-      category_icon: catCheck.icon,
-      category_color: catCheck.color,
+      to_account_id: toAccId,
+      to_account_name: toAccName,
+      category_id: resolvedCatId,
+      category_name: catName,
+      category_icon: catIcon,
+      category_color: catColor,
       type,
       amount: numAmount,
       date,
       description: description.trim(),
-      payment_method: payment_method || 'Cash',
+      payment_method: payment_method || (type === 'TRANSFER' ? 'Transfer' : 'Cash'),
       notes: notes ? String(notes).trim() : '',
       created_at: now,
       updated_at: now,
@@ -270,10 +327,10 @@ transactionRouter.patch('/:id', async (req: AuthRequest, res: Response) => {
       return res.status(404).json({ error: 'Transaction not found.' });
     }
 
-    const { account_id, category_id, type, amount, date, description, payment_method, notes } = req.body;
+    const { account_id, to_account_id, category_id, type, amount, date, description, payment_method, notes } = req.body;
 
     const newType = type !== undefined ? type : existing.type;
-    if (newType !== 'INCOME' && newType !== 'EXPENSE') {
+    if (newType !== 'INCOME' && newType !== 'EXPENSE' && newType !== 'TRANSFER') {
       return res.status(400).json({ error: 'Invalid transaction type.' });
     }
 
@@ -287,11 +344,17 @@ transactionRouter.patch('/:id', async (req: AuthRequest, res: Response) => {
       return res.status(400).json({ error: 'Invalid date format (YYYY-MM-DD).' });
     }
 
-    const newCategoryId = category_id !== undefined ? category_id : existing.category_id;
-    // Check category ownership
-    const catCheck = await db.prepare('SELECT id, name, icon, color FROM categories WHERE id = ? AND user_id = ?').get(newCategoryId, userId) as any;
-    if (!catCheck) {
-      return res.status(403).json({ error: 'Selected category does not belong to your account.' });
+    let newCategoryId = existing.category_id;
+    if (category_id !== undefined) {
+      if (category_id) {
+        const catCheck = await db.prepare('SELECT id FROM categories WHERE id = ? AND user_id = ?').get(category_id, userId) as any;
+        if (!catCheck) {
+          return res.status(403).json({ error: 'Selected category does not belong to your account.' });
+        }
+        newCategoryId = category_id;
+      } else {
+        newCategoryId = null;
+      }
     }
 
     let newAccountId = existing.account_id;
@@ -307,6 +370,23 @@ transactionRouter.patch('/:id', async (req: AuthRequest, res: Response) => {
       }
     }
 
+    let newToAccountId = existing.to_account_id;
+    if (to_account_id !== undefined) {
+      if (to_account_id === null || to_account_id === '') {
+        newToAccountId = null;
+      } else {
+        const accCheck = await db.prepare('SELECT id FROM accounts WHERE id = ? AND user_id = ?').get(to_account_id, userId);
+        if (!accCheck) {
+          return res.status(403).json({ error: 'Selected destination account does not belong to your account.' });
+        }
+        newToAccountId = to_account_id;
+      }
+    }
+
+    if (newType === 'TRANSFER' && (!newAccountId || !newToAccountId || newAccountId === newToAccountId)) {
+      return res.status(400).json({ error: 'Transfer requires distinct source and destination accounts.' });
+    }
+
     const newDesc = description !== undefined ? String(description).trim() : existing.description;
     const newPayment = payment_method !== undefined ? String(payment_method) : existing.payment_method;
     const newNotes = notes !== undefined ? String(notes).trim() : existing.notes;
@@ -314,16 +394,18 @@ transactionRouter.patch('/:id', async (req: AuthRequest, res: Response) => {
 
     await db.prepare(`
       UPDATE transactions
-      SET account_id = ?, category_id = ?, type = ?, amount = ?, date = ?, description = ?, payment_method = ?, notes = ?, updated_at = ?
+      SET account_id = ?, to_account_id = ?, category_id = ?, type = ?, amount = ?, date = ?, description = ?, payment_method = ?, notes = ?, updated_at = ?
       WHERE id = ? AND user_id = ?
-    `).run(newAccountId, newCategoryId, newType, newAmount, newDate, newDesc, newPayment, newNotes, now, transId, userId);
+    `).run(newAccountId, newToAccountId, newCategoryId, newType, newAmount, newDate, newDesc, newPayment, newNotes, now, transId, userId);
 
     const updated = await db.prepare(`
       SELECT t.*, c.name as category_name, c.icon as category_icon, c.color as category_color,
-             a.name as account_name, a.type as account_type
+             a.name as account_name, a.type as account_type, a.icon as account_icon,
+             a_to.name as to_account_name, a_to.type as to_account_type, a_to.icon as to_account_icon
       FROM transactions t
       LEFT JOIN categories c ON t.category_id = c.id
       LEFT JOIN accounts a ON t.account_id = a.id
+      LEFT JOIN accounts a_to ON t.to_account_id = a_to.id
       WHERE t.id = ? AND t.user_id = ?
     `).get(transId, userId) as any;
 

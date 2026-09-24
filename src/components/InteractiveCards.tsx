@@ -13,7 +13,8 @@ import {
   Trash2,
   Edit2,
   Calendar,
-  Sparkles
+  Sparkles,
+  ArrowRightLeft
 } from 'lucide-react';
 import { Budget, SavingsGoal, Transaction } from '../types.ts';
 import { formatMoney, formatDate, getCategoryIcon } from '../utils.tsx';
@@ -525,6 +526,7 @@ export const TransactionItem: React.FC<TransactionItemProps> = ({
 }) => {
   const [isExpanded, setIsExpanded] = useState(false);
   const isIncome = transaction.type === 'INCOME';
+  const isTransfer = transaction.type === 'TRANSFER';
 
   return (
     <div
@@ -549,14 +551,24 @@ export const TransactionItem: React.FC<TransactionItemProps> = ({
         <div className="flex items-center space-x-3 min-w-0">
           <div
             className="w-9 h-9 rounded-xl flex items-center justify-center text-white shrink-0"
-            style={{ backgroundColor: transaction.category_color || '#6B7280' }}
+            style={{ backgroundColor: isTransfer ? '#2563EB' : transaction.category_color || '#6B7280' }}
           >
-            {getCategoryIcon(transaction.category_icon, 'w-4 h-4 text-white')}
+            {isTransfer ? (
+              <ArrowRightLeft className="w-4 h-4 text-white" />
+            ) : (
+              getCategoryIcon(transaction.category_icon, 'w-4 h-4 text-white')
+            )}
           </div>
           <div className="min-w-0">
             <p className="text-sm font-semibold text-[#111111] truncate">{transaction.description}</p>
             <div className="flex items-center space-x-2 text-[11px] text-[#6B6B67]">
-              <span>{transaction.category_name}</span>
+              {isTransfer ? (
+                <span className="font-medium text-[#2563EB]">
+                  {transaction.account_name || 'Wallet'} &rarr; {transaction.to_account_name || 'Wallet'}
+                </span>
+              ) : (
+                <span>{transaction.category_name}</span>
+              )}
               <span>&bull;</span>
               <span>{formatDate(transaction.date)}</span>
             </div>
@@ -565,11 +577,17 @@ export const TransactionItem: React.FC<TransactionItemProps> = ({
 
         <div className="text-right shrink-0 ml-3">
           <span className={`text-sm font-bold tabular-nums block ${
-            isIncome ? 'text-[#15803D]' : 'text-[#111111]'
+            isTransfer ? 'text-[#2563EB]' : isIncome ? 'text-[#15803D]' : 'text-[#111111]'
           }`}>
-            {isIncome ? `+${formatMoney(transaction.amount, currency)}` : `-${formatMoney(transaction.amount, currency)}`}
+            {isTransfer
+              ? `⇄ ${formatMoney(transaction.amount, currency)}`
+              : isIncome
+              ? `+${formatMoney(transaction.amount, currency)}`
+              : `-${formatMoney(transaction.amount, currency)}`}
           </span>
-          <span className="text-[10px] text-[#6B6B67] capitalize">{transaction.payment_method}</span>
+          <span className="text-[10px] text-[#6B6B67] capitalize">
+            {isTransfer ? 'Transfer' : transaction.payment_method}
+          </span>
         </div>
       </div>
 
