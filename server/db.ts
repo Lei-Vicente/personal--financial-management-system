@@ -321,10 +321,19 @@ export async function seedDefaultCategoriesAsync(userId: string) {
 
 export async function seedDefaultAccount(userId: string) {
   const now = new Date().toISOString();
-  await db.prepare(`
-    INSERT INTO accounts (id, user_id, name, type, balance, currency, color, icon, is_default, created_at, updated_at)
-    VALUES (?, ?, 'Cash Wallet', 'CASH', 0, 'PHP', '#10B981', 'Wallet', 1, ?, ?)
-  `).run(crypto.randomUUID(), userId, now, now);
+  const defaultAccounts = [
+    { name: 'Cash on-hand', type: 'CASH', color: '#10B981', icon: 'Banknote', is_default: 1 },
+    { name: 'GCash', type: 'WALLET', color: '#007DFE', icon: 'Smartphone', is_default: 0 },
+    { name: 'GoTyme Bank', type: 'BANK', color: '#00D2C4', icon: 'CreditCard', is_default: 0 },
+    { name: 'Landbank', type: 'BANK', color: '#007B3E', icon: 'Building2', is_default: 0 },
+  ];
+
+  for (const acc of defaultAccounts) {
+    await db.prepare(`
+      INSERT INTO accounts (id, user_id, name, type, balance, currency, color, icon, is_default, created_at, updated_at)
+      VALUES (?, ?, ?, ?, 0, 'PHP', ?, ?, ?, ?, ?)
+    `).run(crypto.randomUUID(), userId, acc.name, acc.type, acc.color, acc.icon, acc.is_default, now, now);
+  }
 }
 
 export async function seedDefaultAccountAsync(userId: string) {

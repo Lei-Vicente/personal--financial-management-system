@@ -1,6 +1,6 @@
 import { Router, Response } from 'express';
 import crypto from 'node:crypto';
-import { db } from '../db.ts';
+import { db, seedDefaultAccount } from '../db.ts';
 import { requireAuth, AuthRequest } from '../auth.ts';
 
 export const accountRouter = Router();
@@ -11,7 +11,7 @@ accountRouter.get('/', async (req: AuthRequest, res: Response) => {
   try {
     const userId = req.user!.id;
 
-    const rows = await db.prepare(`
+    let rows = await db.prepare(`
       SELECT a.*,
         COALESCE(
           (SELECT SUM(CASE WHEN t.type = 'INCOME' THEN t.amount ELSE -t.amount END)
@@ -23,12 +23,55 @@ accountRouter.get('/', async (req: AuthRequest, res: Response) => {
       ORDER BY a.is_default DESC, a.created_at ASC
     `).all(userId) as any[];
 
+    // If no accounts exist yet, automatically seed Philippine wallet defaults
+    if (rows.length === 0) {
+      await seedDefaultAccount(userId);
+      rows = await db.prepare(`
+        SELECT a.*,
+          COALESCE(
+            (SELECT SUM(CASE WHEN t.type = 'INCOME' THEN t.amount ELSE -t.amount END)
+             FROM transactions t
+             WHERE t.account_id = a.id AND t.user_id = a.user_id), 0
+          ) as net_activity
+        FROM accounts a
+        WHERE a.user_id = ?
+        ORDER BY a.is_default DESC, a.created_at ASC
+      `).all(userId) as any[];
+    } else if (rows.length === 1 && rows[0].name === 'Cash Wallet') {
+      // Upgrade single legacy 'Cash Wallet' into full suite: Cash on-hand, GCash, GoTyme Bank, Landbank
+      await db.prepare('UPDATE accounts SET name = ?, icon = ? WHERE id = ?').run('Cash on-hand', 'Banknote', rows[0].id);
+      const now = new Date().toISOString();
+      const extraAccounts = [
+        { name: 'GCash', type: 'WALLET', color: '#007DFE', icon: 'Smartphone', is_default: 0 },
+        { name: 'GoTyme Bank', type: 'BANK', color: '#00D2C4', icon: 'CreditCard', is_default: 0 },
+        { name: 'Landbank', type: 'BANK', color: '#007B3E', icon: 'Building2', is_default: 0 },
+      ];
+      for (const acc of extraAccounts) {
+        await db.prepare(`
+          INSERT INTO accounts (id, user_id, name, type, balance, currency, color, icon, is_default, created_at, updated_at)
+          VALUES (?, ?, ?, ?, 0, 'PHP', ?, ?, ?, ?, ?)
+        `).run(crypto.randomUUID(), userId, acc.name, acc.type, acc.color, acc.icon, acc.is_default, now, now);
+      }
+      rows = await db.prepare(`
+        SELECT a.*,
+          COALESCE(
+            (SELECT SUM(CASE WHEN t.type = 'INCOME' THEN t.amount ELSE -t.amount END)
+             FROM transactions t
+             WHERE t.account_id = a.id AND t.user_id = a.user_id), 0
+          ) as net_activity
+        FROM accounts a
+        WHERE a.user_id = ?
+        ORDER BY a.is_default DESC, a.created_at ASC
+      `).all(userId) as any[];
+    }
+
     const enrichedAccounts = rows.map(acc => {
       const baseBalance = Number(acc.balance || 0);
       const activity = Number(acc.net_activity || 0);
       const currentBalance = baseBalance + activity;
       return {
         ...acc,
+        balance: baseBalance,
         base_balance: baseBalance,
         current_balance: currentBalance,
       };
@@ -78,12 +121,14 @@ accountRouter.post('/', async (req: AuthRequest, res: Response) => {
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?)
     `).run(id, userId, name.trim(), accType, initBalance, currency || 'PHP', color || '#2563EB', icon || 'Wallet', now, now);
 
-    const inserted = await db.prepare('SELECT * FROM accounts WHERE id = ?').get(id);
+    const inserted = await db.prepare('SELECT * FROM accounts WHERE id = ?').get(id) as any;
 
     return res.status(201).json({
       message: 'Account created successfully.',
       account: {
         ...inserted,
+        balance: Number(inserted.balance || 0),
+        base_balance: Number(inserted.balance || 0),
         current_balance: initBalance,
       },
     });
@@ -104,11 +149,36 @@ accountRouter.patch('/:id', async (req: AuthRequest, res: Response) => {
       return res.status(404).json({ error: 'Account not found.' });
     }
 
-    const { name, type, balance, color, icon } = req.body;
+    const { name, type, balance, current_balance, color, icon } = req.body;
+
+    // Fetch existing transaction activity for accurate current balance mapping
+    const actRow = await db.prepare(`
+      SELECT COALESCE(
+        (SELECT SUM(CASE WHEN t.type = 'INCOME' THEN t.amount ELSE -t.amount END)
+         FROM transactions t
+         WHERE t.account_id = ? AND t.user_id = ?), 0
+      ) as net_activity
+    `).get(accountId, userId) as any;
+    const netActivity = Number(actRow?.net_activity || 0);
 
     const newName = name !== undefined ? String(name).trim() : existing.name;
     const newType = type !== undefined ? String(type).toUpperCase() : existing.type;
-    const newBalance = balance !== undefined ? Number(balance) : existing.balance;
+
+    let newBalance = Number(existing.balance || 0);
+    if (current_balance !== undefined) {
+      const numCurrent = Number(current_balance);
+      if (isNaN(numCurrent)) {
+        return res.status(400).json({ error: 'Invalid balance specified.' });
+      }
+      newBalance = numCurrent - netActivity;
+    } else if (balance !== undefined) {
+      const numBase = Number(balance);
+      if (isNaN(numBase)) {
+        return res.status(400).json({ error: 'Invalid balance specified.' });
+      }
+      newBalance = numBase;
+    }
+
     const newColor = color !== undefined ? String(color) : existing.color;
     const newIcon = icon !== undefined ? String(icon) : existing.icon;
 
@@ -123,11 +193,18 @@ accountRouter.patch('/:id', async (req: AuthRequest, res: Response) => {
       WHERE id = ? AND user_id = ?
     `).run(newName, newType, newBalance, newColor, newIcon, now, accountId, userId);
 
-    const updated = await db.prepare('SELECT * FROM accounts WHERE id = ?').get(accountId);
+    const updated = await db.prepare('SELECT * FROM accounts WHERE id = ?').get(accountId) as any;
+    const baseBal = Number(updated.balance || 0);
+    const finalBalance = baseBal + netActivity;
 
     return res.json({
       message: 'Account updated successfully.',
-      account: updated,
+      account: {
+        ...updated,
+        balance: baseBal,
+        base_balance: baseBal,
+        current_balance: finalBalance,
+      },
     });
   } catch (error: any) {
     console.error('Update account error:', error);
@@ -144,6 +221,11 @@ accountRouter.delete('/:id', async (req: AuthRequest, res: Response) => {
     const existing = await db.prepare('SELECT * FROM accounts WHERE id = ? AND user_id = ?').get(accountId, userId) as any;
     if (!existing) {
       return res.status(404).json({ error: 'Account not found.' });
+    }
+
+    const countRow = await db.prepare('SELECT COUNT(*) as count FROM accounts WHERE user_id = ?').get(userId) as any;
+    if (Number(countRow?.count || 0) <= 1) {
+      return res.status(400).json({ error: 'You must maintain at least one active wallet or account.' });
     }
 
     // Transactions tied to this account will have account_id set to null via foreign key ON DELETE SET NULL

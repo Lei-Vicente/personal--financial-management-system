@@ -3,6 +3,7 @@ import { PiggyBank, Plus, TrendingUp, Trash2, Calendar, Target } from 'lucide-re
 import { User, SavingsGoal } from '../types.ts';
 import { apiFetch, apiFetchCached, getCachedData, formatMoney } from '../utils.tsx';
 import { SavingsGoalCard } from '../components/InteractiveCards.tsx';
+import { WalletSection } from '../components/WalletSection.tsx';
 
 interface SavingsViewProps {
   user: User;
@@ -77,6 +78,13 @@ export const SavingsView: React.FC<SavingsViewProps> = ({
           <span>New Savings Goal</span>
         </button>
       </div>
+
+      {/* Wallets & Liquid Savings Accounts (Landbank, GoTyme, GCash, Cash on-hand, etc.) */}
+      <WalletSection
+        user={user}
+        dataVersion={dataVersion}
+        onDataChanged={onDataChanged}
+      />
 
       {/* Aggregate Overview Banner */}
       <div className="bg-[#FFFFFF] border border-[#D9D9D4] rounded-2xl p-6 shadow-xs space-y-4">

@@ -9,6 +9,7 @@ import {
 import { User, Category, Transaction, Budget, SavingsGoal, DashboardAnalytics } from '../types.ts';
 import { apiFetch, apiFetchCached, getCachedData } from '../utils.tsx';
 import { BalanceCard, IncomeCard, ExpenseCard, BudgetCard, SavingsGoalCard, TransactionItem } from '../components/InteractiveCards.tsx';
+import { WalletSection } from '../components/WalletSection.tsx';
 
 interface DashboardViewProps {
   user: User;
@@ -157,6 +158,13 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
               onClick={() => onNavigate('transactions', { type: 'EXPENSE', categoryId: 'ALL' })}
             />
           </div>
+
+          {/* Wallets & Liquid Savings Cards (Landbank, GoTyme, GCash, Cash on-hand, etc.) */}
+          <WalletSection
+            user={user}
+            dataVersion={dataVersion}
+            onDataChanged={onDataChanged}
+          />
 
           {/* 3. Two-Column Dashboard Section: Budgets & Savings Goals */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 sm:gap-6 min-w-0">

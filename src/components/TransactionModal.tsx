@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { X, Plus, Check, AlertCircle } from 'lucide-react';
-import { Category, Transaction } from '../types.ts';
-import { apiFetch, CURRENCY_MAP, getCategoryIcon } from '../utils.tsx';
+import { Category, Transaction, Account } from '../types.ts';
+import { apiFetch, apiFetchCached, CURRENCY_MAP, getCategoryIcon, formatMoney } from '../utils.tsx';
 
 interface TransactionModalProps {
   isOpen: boolean;
@@ -25,6 +25,8 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
   const [type, setType] = useState<'INCOME' | 'EXPENSE'>(defaultType);
   const [amount, setAmount] = useState('');
   const [categoryId, setCategoryId] = useState('');
+  const [accountId, setAccountId] = useState('');
+  const [accounts, setAccounts] = useState<Account[]>([]);
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
   const [description, setDescription] = useState('');
   const [paymentMethod, setPaymentMethod] = useState('Credit Card');
@@ -33,12 +35,27 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Load available accounts
+  useEffect(() => {
+    if (isOpen) {
+      apiFetchCached<any>('/api/accounts').then((res) => {
+        const list = res.accounts || [];
+        setAccounts(list);
+        if (!transactionToEdit && list.length > 0 && !accountId) {
+          const def = list.find((a: Account) => a.is_default === 1) || list[0];
+          setAccountId(def.id);
+        }
+      }).catch(console.error);
+    }
+  }, [isOpen]);
+
   // Sync state on open/edit
   useEffect(() => {
     if (transactionToEdit) {
       setType(transactionToEdit.type);
       setAmount(String(transactionToEdit.amount));
       setCategoryId(transactionToEdit.category_id);
+      setAccountId(transactionToEdit.account_id || '');
       setDate(transactionToEdit.date);
       setDescription(transactionToEdit.description);
       setPaymentMethod(transactionToEdit.payment_method || 'Cash');
@@ -99,6 +116,7 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
             type,
             amount: numAmount,
             category_id: categoryId,
+            account_id: accountId || null,
             date,
             description: description.trim(),
             payment_method: paymentMethod,
@@ -112,6 +130,7 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
             type,
             amount: numAmount,
             category_id: categoryId,
+            account_id: accountId || null,
             date,
             description: description.trim(),
             payment_method: paymentMethod,
@@ -236,8 +255,27 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
             />
           </div>
 
-          {/* Category & Payment Method */}
+          {/* Wallet / Account & Category */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-semibold uppercase tracking-wider text-[#111111] mb-1.5">
+                Wallet / Account
+              </label>
+              <select
+                id="trans-account-select"
+                value={accountId}
+                onChange={(e) => setAccountId(e.target.value)}
+                className="w-full py-2.5 px-3.5 bg-[#FFFFFF] border border-[#D9D9D4] rounded-xl text-sm text-[#111111] focus:outline-none focus:border-[#2563EB]"
+              >
+                <option value="">No specific account</option>
+                {accounts.map((acc) => (
+                  <option key={acc.id} value={acc.id}>
+                    {acc.name} ({formatMoney(acc.current_balance ?? acc.balance ?? 0, currency)})
+                  </option>
+                ))}
+              </select>
+            </div>
+
             <div>
               <label className="block text-xs font-semibold uppercase tracking-wider text-[#111111] mb-1.5">
                 Category
@@ -255,26 +293,26 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
                 ))}
               </select>
             </div>
+          </div>
 
-            <div>
-              <label className="block text-xs font-semibold uppercase tracking-wider text-[#111111] mb-1.5">
-                Payment Method
-              </label>
-              <select
-                id="trans-payment-select"
-                value={paymentMethod}
-                onChange={(e) => setPaymentMethod(e.target.value)}
-                className="w-full py-2.5 px-3.5 bg-[#FFFFFF] border border-[#D9D9D4] rounded-xl text-sm text-[#111111] focus:outline-none focus:border-[#2563EB]"
-              >
-                <option value="Credit Card">Credit Card</option>
-                <option value="Debit Card">Debit Card</option>
-                <option value="Cash">Cash</option>
-                <option value="GCash">GCash</option>
-                <option value="Maya">Maya</option>
-                <option value="Bank Transfer">Bank Transfer</option>
-                <option value="Other">Other</option>
-              </select>
-            </div>
+          <div>
+            <label className="block text-xs font-semibold uppercase tracking-wider text-[#111111] mb-1.5">
+              Payment Method
+            </label>
+            <select
+              id="trans-payment-select"
+              value={paymentMethod}
+              onChange={(e) => setPaymentMethod(e.target.value)}
+              className="w-full py-2.5 px-3.5 bg-[#FFFFFF] border border-[#D9D9D4] rounded-xl text-sm text-[#111111] focus:outline-none focus:border-[#2563EB]"
+            >
+              <option value="Credit Card">Credit Card</option>
+              <option value="Debit Card">Debit Card</option>
+              <option value="Cash">Cash</option>
+              <option value="GCash">GCash</option>
+              <option value="Maya">Maya</option>
+              <option value="Bank Transfer">Bank Transfer</option>
+              <option value="Other">Other</option>
+            </select>
           </div>
 
           {/* Notes */}

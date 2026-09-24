@@ -24,6 +24,12 @@ import {
   AlertCircle,
   Clock,
   Sparkles,
+  Building2,
+  Landmark,
+  Smartphone,
+  Banknote,
+  Coins,
+  Wallet,
   LucideIcon
 } from 'lucide-react';
 
@@ -91,10 +97,21 @@ const ICON_REGISTRY: Record<string, LucideIcon> = {
   AlertCircle,
   Clock,
   Sparkles,
+  Building2,
+  Landmark,
+  Smartphone,
+  Banknote,
+  Coins,
+  Wallet,
 };
 
 export function getCategoryIcon(name: string | undefined, className = 'w-4 h-4'): React.ReactElement {
   const IconComponent = (name && ICON_REGISTRY[name]) ? ICON_REGISTRY[name] : Tag;
+  return <IconComponent className={className} />;
+}
+
+export function getAccountIcon(name: string | undefined, className = 'w-4 h-4'): React.ReactElement {
+  const IconComponent = (name && ICON_REGISTRY[name]) ? ICON_REGISTRY[name] : Wallet;
   return <IconComponent className={className} />;
 }
 
