@@ -13,7 +13,7 @@ import {
   ArrowDownRight
 } from 'lucide-react';
 import { User, Category, DashboardAnalytics } from '../types.ts';
-import { apiFetch, apiFetchCached, getCachedData, formatMoney, getCategoryIcon, downloadCsvFile } from '../utils.tsx';
+import { apiFetch, apiFetchFresh, apiFetchCached, getCachedData, formatMoney, getCategoryIcon, downloadCsvFile } from '../utils.tsx';
 import { SpendingChart } from '../components/SpendingChart.tsx';
 
 interface AnalyticsViewProps {
@@ -44,7 +44,7 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ user, categories, 
   useEffect(() => {
     const loadAnalytics = async () => {
       try {
-        const res = await apiFetchCached<DashboardAnalytics>('/api/analytics/dashboard');
+        const res = await apiFetchFresh<DashboardAnalytics>('/api/analytics/dashboard');
         setAnalytics(res);
       } catch (err) {
         console.error('Failed to load analytics:', err);
@@ -59,7 +59,7 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ user, categories, 
     const loadStatement = async () => {
       if (!statement) setStatementLoading(true);
       try {
-        const res = await apiFetchCached<any>(reportUrl);
+        const res = await apiFetchFresh<any>(reportUrl);
         setStatement(res);
       } catch (err) {
         console.error('Failed to load statement report:', err);

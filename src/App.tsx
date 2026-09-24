@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { User, Category, Transaction, Budget, SavingsGoal, Account } from './types.ts';
-import { apiFetch, setStoredToken } from './utils.tsx';
+import { apiFetch, setStoredToken, clearClientCache } from './utils.tsx';
 import { Navigation, NavTab } from './components/Navigation.tsx';
 import { AuthView } from './components/AuthView.tsx';
 import { OnboardingView } from './components/OnboardingView.tsx';
@@ -62,8 +62,14 @@ export default function App() {
   const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
 
   const [isBudgetModalOpen, setIsBudgetModalOpen] = useState(false);
+  const [budgetModalMonth, setBudgetModalMonth] = useState(`${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}`);
   const [isAddGoalModalOpen, setIsAddGoalModalOpen] = useState(false);
   const [selectedGoalForContrib, setSelectedGoalForContrib] = useState<SavingsGoal | null>(null);
+
+  const handleOpenAddBudget = (month?: string) => {
+    if (month) setBudgetModalMonth(month);
+    setIsBudgetModalOpen(true);
+  };
 
   // Load user session on boot
   useEffect(() => {
@@ -147,7 +153,10 @@ export default function App() {
   if (!currentUser) {
     return (
       <AuthView
-        onAuthSuccess={(user) => setCurrentUser(user)}
+        onAuthSuccess={(user) => {
+          clearClientCache();
+          setCurrentUser(user);
+        }}
       />
     );
   }
@@ -157,7 +166,11 @@ export default function App() {
     return (
       <OnboardingView
         user={currentUser}
-        onComplete={(updated) => setCurrentUser(updated)}
+        onComplete={(updated) => {
+          clearClientCache();
+          setCurrentUser(updated);
+          notifyDataChanged();
+        }}
       />
     );
   }
@@ -186,7 +199,7 @@ export default function App() {
               }
             }}
             onOpenAddTransaction={handleOpenAddTransaction}
-            onOpenAddBudget={() => setIsBudgetModalOpen(true)}
+            onOpenAddBudget={handleOpenAddBudget}
             onOpenAddSavings={() => setIsAddGoalModalOpen(true)}
             onOpenAddContribution={(goal) => setSelectedGoalForContrib(goal)}
             onEditTransaction={handleEditTransaction}
@@ -211,7 +224,7 @@ export default function App() {
           <BudgetsView
             user={currentUser}
             categories={categories}
-            onOpenAddBudget={() => setIsBudgetModalOpen(true)}
+            onOpenAddBudget={handleOpenAddBudget}
             onNavigateToLedger={(catId) => handleNavigateToTransactions({ categoryId: catId || 'ALL', type: 'EXPENSE' })}
             dataVersion={dataVersion}
             onDataChanged={notifyDataChanged}
@@ -278,7 +291,7 @@ export default function App() {
         }}
         categories={categories}
         currency={currentUser.currency}
-        defaultMonth={`${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}`}
+        defaultMonth={budgetModalMonth}
       />
 
       {/* 3. Add Savings Goal Modal */}

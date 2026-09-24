@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Wallet, Plus, ArrowRight, ShieldCheck, Sparkles } from 'lucide-react';
 import { User, Account } from '../types.ts';
-import { apiFetchCached, getCachedData, formatMoney } from '../utils.tsx';
+import { apiFetchFresh, apiFetchCached, getCachedData, formatMoney } from '../utils.tsx';
 import { WalletCard } from './WalletCard.tsx';
 import { QuickBalanceModal } from './QuickBalanceModal.tsx';
 import { AccountModal } from './AccountModal.tsx';
@@ -27,7 +27,7 @@ export const WalletSection: React.FC<WalletSectionProps> = ({
 
   const loadAccounts = async () => {
     try {
-      const res = await apiFetchCached<any>('/api/accounts');
+      const res = await apiFetchFresh<any>('/api/accounts');
       setAccounts(res.accounts || []);
     } catch (err) {
       console.error('Failed to load accounts:', err);

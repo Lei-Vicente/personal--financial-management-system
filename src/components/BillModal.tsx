@@ -48,8 +48,10 @@ export const BillModal: React.FC<BillModalProps> = ({
       const defaultDue = new Date();
       defaultDue.setDate(defaultDue.getDate() + 7);
       setDueDate(defaultDue.toISOString().split('T')[0]);
-      setFrequency('MONTHLY');
-      if (categories.length > 0) {
+      const expenseCats = categories.filter(c => c.type === 'EXPENSE');
+      if (expenseCats.length > 0) {
+        setCategoryId(expenseCats[0].id);
+      } else if (categories.length > 0) {
         setCategoryId(categories[0].id);
       }
       if (accounts.length > 0) {
@@ -209,7 +211,7 @@ export const BillModal: React.FC<BillModalProps> = ({
                 className="w-full py-2.5 px-3.5 bg-[#FFFFFF] border border-[#D9D9D4] rounded-xl text-sm text-[#111111] focus:outline-none focus:border-[#2563EB]"
               >
                 <option value="">No specific category</option>
-                {categories.map((c) => (
+                {(categories.some(c => c.type === 'EXPENSE') ? categories.filter(c => c.type === 'EXPENSE') : categories).map((c) => (
                   <option key={c.id} value={c.id}>
                     {c.name}
                   </option>

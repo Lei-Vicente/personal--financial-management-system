@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { PiggyBank, Plus, TrendingUp, Trash2, Calendar, Target } from 'lucide-react';
 import { User, SavingsGoal } from '../types.ts';
-import { apiFetch, apiFetchCached, getCachedData, formatMoney } from '../utils.tsx';
+import { apiFetch, apiFetchFresh, apiFetchCached, getCachedData, formatMoney } from '../utils.tsx';
 import { SavingsGoalCard } from '../components/InteractiveCards.tsx';
 import { WalletSection } from '../components/WalletSection.tsx';
 
@@ -25,7 +25,7 @@ export const SavingsView: React.FC<SavingsViewProps> = ({
 
   const loadGoals = async () => {
     try {
-      const res = await apiFetchCached<any>('/api/savings-goals');
+      const res = await apiFetchFresh<any>('/api/savings-goals');
       setGoals(res.goals || []);
     } catch (err) {
       console.error('Failed to load savings goals:', err);
@@ -162,15 +162,8 @@ export const SavingsView: React.FC<SavingsViewProps> = ({
                   goal={g}
                   currency={user.currency}
                   onAddContribution={onOpenAddContribution}
+                  onDelete={() => handleDeleteGoal(g.id, g.name)}
                 />
-                <button
-                  type="button"
-                  title="Delete goal"
-                  onClick={() => handleDeleteGoal(g.id, g.name)}
-                  className="absolute top-4 right-10 p-1 text-[#6B6B67] hover:text-[#B91C1C] hover:bg-red-50 rounded-md transition-colors opacity-70 hover:opacity-100 cursor-pointer"
-                >
-                  <Trash2 className="w-3.5 h-3.5" />
-                </button>
               </div>
             ))}
           </div>

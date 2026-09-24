@@ -249,9 +249,10 @@ interface BudgetCardProps {
   budget: Budget;
   currency: string;
   onViewCategory?: (catId: string) => void;
+  onDelete?: () => void;
 }
 
-export const BudgetCard: React.FC<BudgetCardProps> = ({ budget, currency, onViewCategory }) => {
+export const BudgetCard: React.FC<BudgetCardProps> = ({ budget, currency, onViewCategory, onDelete }) => {
   const [isExpanded, setIsExpanded] = useState(false);
 
   // Status colors
@@ -302,10 +303,23 @@ export const BudgetCard: React.FC<BudgetCardProps> = ({ budget, currency, onView
           </div>
         </div>
 
-        <div className="flex items-center space-x-2 shrink-0">
+        <div className="flex items-center space-x-1.5 shrink-0">
           <span className={`text-xs font-bold px-2 py-0.5 rounded-full border ${badgeStyle}`}>
             {budget.percentage}%
           </span>
+          {onDelete && (
+            <button
+              type="button"
+              title="Delete budget"
+              onClick={(e) => {
+                e.stopPropagation();
+                onDelete();
+              }}
+              className="p-1 text-[#6B6B67] hover:text-[#B91C1C] hover:bg-red-50 rounded-lg transition-colors cursor-pointer"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+            </button>
+          )}
           {isExpanded ? <ChevronUp className="w-4 h-4 text-[#6B6B67]" /> : <ChevronDown className="w-4 h-4 text-[#6B6B67]" />}
         </div>
       </div>
@@ -398,9 +412,10 @@ interface SavingsGoalCardProps {
   goal: SavingsGoal;
   currency: string;
   onAddContribution: (goal: SavingsGoal) => void;
+  onDelete?: () => void;
 }
 
-export const SavingsGoalCard: React.FC<SavingsGoalCardProps> = ({ goal, currency, onAddContribution }) => {
+export const SavingsGoalCard: React.FC<SavingsGoalCardProps> = ({ goal, currency, onAddContribution, onDelete }) => {
   const [isExpanded, setIsExpanded] = useState(false);
 
   return (
@@ -427,10 +442,23 @@ export const SavingsGoalCard: React.FC<SavingsGoalCardProps> = ({ goal, currency
             {formatMoney(goal.current_amount, currency)} of {formatMoney(goal.target_amount, currency)}
           </span>
         </div>
-        <div className="flex items-center space-x-2 shrink-0">
+        <div className="flex items-center space-x-1.5 shrink-0">
           <span className="text-xs font-bold text-[#15803D] bg-green-50 px-2.5 py-0.5 rounded-full border border-green-200">
             {goal.percentage}%
           </span>
+          {onDelete && (
+            <button
+              type="button"
+              title="Delete savings goal"
+              onClick={(e) => {
+                e.stopPropagation();
+                onDelete();
+              }}
+              className="p-1 text-[#6B6B67] hover:text-[#B91C1C] hover:bg-red-50 rounded-lg transition-colors cursor-pointer"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+            </button>
+          )}
           {isExpanded ? <ChevronUp className="w-4 h-4 text-[#6B6B67]" /> : <ChevronDown className="w-4 h-4 text-[#6B6B67]" />}
         </div>
       </div>

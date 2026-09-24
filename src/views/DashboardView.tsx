@@ -11,7 +11,7 @@ import {
   AlertTriangle
 } from 'lucide-react';
 import { User, Category, Transaction, Budget, SavingsGoal, DashboardAnalytics, Bill } from '../types.ts';
-import { apiFetch, apiFetchCached, getCachedData, formatMoney, formatDate } from '../utils.tsx';
+import { apiFetch, apiFetchFresh, apiFetchCached, getCachedData, formatMoney, formatDate } from '../utils.tsx';
 import { BalanceCard, IncomeCard, ExpenseCard, BudgetCard, SavingsGoalCard, TransactionItem } from '../components/InteractiveCards.tsx';
 import { WalletSection } from '../components/WalletSection.tsx';
 
@@ -59,11 +59,11 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   const loadDashboardData = async () => {
     try {
       const [analyticsRes, transRes, budgetsRes, savingsRes, billsRes] = await Promise.all([
-        apiFetchCached<DashboardAnalytics>('/api/analytics/dashboard'),
-        apiFetchCached<any>('/api/transactions?limit=6'),
-        apiFetchCached<any>('/api/budgets'),
-        apiFetchCached<any>('/api/savings-goals'),
-        apiFetchCached<any>('/api/bills?status=unpaid').catch(() => ({ bills: [] })),
+        apiFetchFresh<DashboardAnalytics>('/api/analytics/dashboard'),
+        apiFetchFresh<any>('/api/transactions?limit=6'),
+        apiFetchFresh<any>('/api/budgets'),
+        apiFetchFresh<any>('/api/savings-goals'),
+        apiFetchFresh<any>('/api/bills?status=unpaid').catch(() => ({ bills: [] })),
       ]);
 
       setAnalytics(analyticsRes);
@@ -330,25 +330,40 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
       </div>
 
       {/* 4. Upcoming Bills & Commitments */}
-      {upcomingBills.length > 0 && (
-        <div className="bg-[#FFFFFF] border border-[#D9D9D4] rounded-2xl p-5 sm:p-6 shadow-xs">
-          <div className="flex items-center justify-between pb-4 border-b border-[#D9D9D4]/60 mb-4">
-            <div className="flex items-center space-x-2">
-              <CalendarClock className="w-4 h-4 text-[#D97706]" />
-              <h2 className="text-base font-bold text-[#111111] tracking-tight">Upcoming Bills</h2>
+      <div className="bg-[#FFFFFF] border border-[#D9D9D4] rounded-2xl p-5 sm:p-6 shadow-xs">
+        <div className="flex items-center justify-between pb-4 border-b border-[#D9D9D4]/60 mb-4">
+          <div className="flex items-center space-x-2">
+            <CalendarClock className="w-4 h-4 text-[#D97706]" />
+            <h2 className="text-base font-bold text-[#111111] tracking-tight">Upcoming Bills</h2>
+            {upcomingBills.length > 0 && (
               <span className="px-2 py-0.5 text-[11px] font-semibold rounded-full bg-amber-50 text-amber-700 border border-amber-200">
                 {upcomingBills.length} Due Soon
               </span>
-            </div>
+            )}
+          </div>
+          <button
+            onClick={() => onNavigate('bills')}
+            className="text-xs text-[#2563EB] hover:underline font-semibold flex items-center space-x-1 cursor-pointer"
+          >
+            <span>{upcomingBills.length > 0 ? 'Manage bills' : 'View bills'}</span>
+            <ArrowRight className="w-3.5 h-3.5" />
+          </button>
+        </div>
+
+        {upcomingBills.length === 0 ? (
+          <div className="py-6 text-center space-y-2.5">
+            <p className="text-xs text-[#6B6B67]">
+              No pending bills or obligations due soon. Add your recurring subscriptions or utilities.
+            </p>
             <button
               onClick={() => onNavigate('bills')}
-              className="text-xs text-[#2563EB] hover:underline font-semibold flex items-center space-x-1 cursor-pointer"
+              className="px-3.5 py-1.5 bg-[#111111] hover:bg-[#2563EB] text-white rounded-xl text-xs font-semibold inline-flex items-center space-x-1.5 transition-colors cursor-pointer"
             >
-              <span>Manage bills</span>
-              <ArrowRight className="w-3.5 h-3.5" />
+              <Plus className="w-3.5 h-3.5" />
+              <span>Add Bill</span>
             </button>
           </div>
-
+        ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5">
             {upcomingBills.slice(0, 3).map((bill) => {
               const daysUntil = Math.ceil(
@@ -396,8 +411,8 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
               );
             })}
           </div>
-        </div>
-      )}
+        )}
+      </div>
 
       {/* 5. Recent Transactions Ledger (Section 13) */}
       <div className="bg-[#FFFFFF] border border-[#D9D9D4] rounded-2xl p-6 shadow-xs">

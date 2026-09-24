@@ -10,7 +10,7 @@ import {
   AlertCircle
 } from 'lucide-react';
 import { User, Category, Transaction } from '../types.ts';
-import { apiFetch, apiFetchCached, getCachedData, formatMoney, downloadCsvFile } from '../utils.tsx';
+import { apiFetch, apiFetchFresh, apiFetchCached, getCachedData, formatMoney, downloadCsvFile } from '../utils.tsx';
 import { TransactionItem } from '../components/InteractiveCards.tsx';
 
 interface TransactionsViewProps {
@@ -74,7 +74,7 @@ export const TransactionsView: React.FC<TransactionsViewProps> = ({
       params.append('limit', String(limit));
 
       const queryUrl = `/api/transactions?${params.toString()}`;
-      const res = await apiFetchCached<any>(queryUrl);
+      const res = await apiFetchFresh<any>(queryUrl);
       setTransactions(res.transactions || []);
       setTotal(res.pagination?.total ?? res.total ?? 0);
     } catch (err) {

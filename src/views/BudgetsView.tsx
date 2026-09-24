@@ -1,13 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { PieChart, Plus, AlertCircle, Calendar, Trash2, CheckCircle2 } from 'lucide-react';
 import { User, Category, Budget } from '../types.ts';
-import { apiFetch, apiFetchCached, getCachedData, formatMoney } from '../utils.tsx';
+import { apiFetch, apiFetchFresh, getCachedData, formatMoney } from '../utils.tsx';
 import { BudgetCard } from '../components/InteractiveCards.tsx';
 
 interface BudgetsViewProps {
   user: User;
   categories: Category[];
-  onOpenAddBudget: () => void;
+  onOpenAddBudget: (month?: string) => void;
   onNavigateToLedger: (categoryId?: string) => void;
   dataVersion?: number;
   onDataChanged?: () => void;
@@ -31,7 +31,7 @@ export const BudgetsView: React.FC<BudgetsViewProps> = ({
 
   const loadBudgets = async () => {
     try {
-      const res = await apiFetchCached<any>(`/api/budgets?month=${currentMonth}`);
+      const res = await apiFetchFresh<any>(`/api/budgets?month=${currentMonth}`);
       setBudgets(res.budgets || []);
     } catch (err) {
       console.error('Failed to load budgets:', err);
@@ -89,7 +89,7 @@ export const BudgetsView: React.FC<BudgetsViewProps> = ({
           </div>
 
           <button
-            onClick={onOpenAddBudget}
+            onClick={() => onOpenAddBudget(currentMonth)}
             className="px-4 py-2 bg-[#111111] hover:bg-[#2563EB] text-white rounded-xl text-xs font-semibold flex items-center space-x-1.5 transition-colors cursor-pointer shadow-xs"
           >
             <Plus className="w-3.5 h-3.5" />
@@ -184,7 +184,7 @@ export const BudgetsView: React.FC<BudgetsViewProps> = ({
               Define spending limits for food, transport, bills, and entertainment to track budget adherence.
             </p>
             <button
-              onClick={onOpenAddBudget}
+              onClick={() => onOpenAddBudget(currentMonth)}
               className="px-4 py-2 bg-[#111111] hover:bg-[#2563EB] text-white rounded-xl text-xs font-semibold cursor-pointer"
             >
               Set First Budget
@@ -193,21 +193,13 @@ export const BudgetsView: React.FC<BudgetsViewProps> = ({
         ) : (
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-5 min-w-0">
             {budgets.map((b) => (
-              <div key={b.id} className="relative group">
-                <BudgetCard
-                  budget={b}
-                  currency={user.currency}
-                  onViewCategory={onNavigateToLedger}
-                />
-                <button
-                  type="button"
-                  title="Delete budget"
-                  onClick={() => handleDeleteBudget(b.id, b.category_name)}
-                  className="absolute top-4 right-10 p-1 text-[#6B6B67] hover:text-[#B91C1C] hover:bg-red-50 rounded-md transition-colors opacity-70 hover:opacity-100 cursor-pointer"
-                >
-                  <Trash2 className="w-3.5 h-3.5" />
-                </button>
-              </div>
+              <BudgetCard
+                key={b.id}
+                budget={b}
+                currency={user.currency}
+                onViewCategory={onNavigateToLedger}
+                onDelete={() => handleDeleteBudget(b.id, b.category_name)}
+              />
             ))}
           </div>
         )}

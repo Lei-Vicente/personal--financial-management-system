@@ -14,7 +14,7 @@ import {
   Play
 } from 'lucide-react';
 import { User, Category, Account, Bill, RecurringTransaction } from '../types.ts';
-import { apiFetch, apiFetchCached, getCachedData, formatMoney, formatDate, getCategoryIcon } from '../utils.tsx';
+import { apiFetch, apiFetchFresh, apiFetchCached, getCachedData, formatMoney, formatDate, getCategoryIcon } from '../utils.tsx';
 import { BillModal } from '../components/BillModal.tsx';
 import { RecurringModal } from '../components/RecurringModal.tsx';
 
@@ -57,7 +57,7 @@ export const BillsView: React.FC<BillsViewProps> = ({
 
   const loadBills = async () => {
     try {
-      const res = await apiFetchCached<any>(`/api/bills?status=${statusFilter}`);
+      const res = await apiFetchFresh<any>(`/api/bills?status=${statusFilter}`);
       setBills(res.bills || []);
       setBillSummary(res.summary || null);
     } catch (err) {
@@ -69,7 +69,7 @@ export const BillsView: React.FC<BillsViewProps> = ({
 
   const loadRecurring = async () => {
     try {
-      const res = await apiFetchCached<any>('/api/recurring-transactions');
+      const res = await apiFetchFresh<any>('/api/recurring-transactions');
       setRecurringList(res.recurring_transactions || []);
     } catch (err) {
       console.error('Failed to load recurring schedules:', err);
@@ -362,16 +362,16 @@ export const BillsView: React.FC<BillsViewProps> = ({
                     </div>
                   </div>
 
-                  <div className="flex items-center justify-between sm:justify-end space-x-3 shrink-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-[#D9D9D4]/50">
-                    <span className="text-base font-bold text-[#111111] tabular-nums">
+                  <div className="flex items-center justify-between sm:justify-end gap-3 shrink-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-[#D9D9D4]/50 flex-wrap sm:flex-nowrap">
+                    <span className="text-base font-bold text-[#111111] tabular-nums shrink-0">
                       {formatMoney(bill.amount, user.currency)}
                     </span>
 
-                    <div className="flex items-center space-x-1.5">
+                    <div className="flex items-center gap-1.5 shrink-0">
                       {!bill.is_paid && (
                         <button
                           onClick={() => handlePayBill(bill.id)}
-                          className="px-3 py-1.5 bg-[#15803D] hover:bg-[#166534] text-white rounded-xl text-xs font-semibold flex items-center space-x-1 transition-colors cursor-pointer shadow-xs"
+                          className="px-3 py-1.5 bg-[#15803D] hover:bg-[#166534] text-white rounded-xl text-xs font-semibold flex items-center space-x-1 transition-colors cursor-pointer shadow-xs shrink-0"
                           title="Pay and record transaction"
                         >
                           <CheckCircle2 className="w-3.5 h-3.5" />
@@ -384,7 +384,7 @@ export const BillsView: React.FC<BillsViewProps> = ({
                           setBillToEdit(bill);
                           setBillModalOpen(true);
                         }}
-                        className="p-2 text-[#6B6B67] hover:text-[#111111] hover:bg-[#EBEBE7] rounded-xl transition-colors cursor-pointer"
+                        className="p-2 text-[#6B6B67] hover:text-[#111111] hover:bg-[#EBEBE7] rounded-xl transition-colors cursor-pointer shrink-0"
                         title="Edit Bill"
                       >
                         <Edit2 className="w-4 h-4" />
@@ -392,7 +392,7 @@ export const BillsView: React.FC<BillsViewProps> = ({
 
                       <button
                         onClick={() => handleDeleteBill(bill.id)}
-                        className="p-2 text-[#6B6B67] hover:text-[#B91C1C] hover:bg-red-50 rounded-xl transition-colors cursor-pointer"
+                        className="p-2 text-[#6B6B67] hover:text-[#B91C1C] hover:bg-red-50 rounded-xl transition-colors cursor-pointer shrink-0"
                         title="Delete Bill"
                       >
                         <Trash2 className="w-4 h-4" />
@@ -515,19 +515,19 @@ export const BillsView: React.FC<BillsViewProps> = ({
                     </div>
                   </div>
 
-                  <div className="flex items-center justify-between sm:justify-end space-x-3 shrink-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-[#D9D9D4]/50">
+                  <div className="flex items-center justify-between sm:justify-end gap-3 shrink-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-[#D9D9D4]/50 flex-wrap sm:flex-nowrap">
                     <span
-                      className={`text-base font-bold tabular-nums ${
+                      className={`text-base font-bold tabular-nums shrink-0 ${
                         rec.type === 'INCOME' ? 'text-[#15803D]' : 'text-[#B91C1C]'
                       }`}
                     >
                       {rec.type === 'INCOME' ? '+' : '-'}{formatMoney(rec.amount, user.currency)}
                     </span>
 
-                    <div className="flex items-center space-x-1.5">
+                    <div className="flex items-center gap-1.5 shrink-0">
                       <button
                         onClick={() => handleToggleRecurringActive(rec)}
-                        className="px-2.5 py-1.5 bg-[#EBEBE7] hover:bg-[#D9D9D4] text-[#111111] rounded-xl text-xs font-semibold transition-colors cursor-pointer"
+                        className="px-2.5 py-1.5 bg-[#EBEBE7] hover:bg-[#D9D9D4] text-[#111111] rounded-xl text-xs font-semibold transition-colors cursor-pointer shrink-0"
                       >
                         {rec.is_active ? 'Pause' : 'Resume'}
                       </button>
@@ -537,7 +537,7 @@ export const BillsView: React.FC<BillsViewProps> = ({
                           setRecurringToEdit(rec);
                           setRecurringModalOpen(true);
                         }}
-                        className="p-2 text-[#6B6B67] hover:text-[#111111] hover:bg-[#EBEBE7] rounded-xl transition-colors cursor-pointer"
+                        className="p-2 text-[#6B6B67] hover:text-[#111111] hover:bg-[#EBEBE7] rounded-xl transition-colors cursor-pointer shrink-0"
                         title="Edit Schedule"
                       >
                         <Edit2 className="w-4 h-4" />
@@ -545,7 +545,7 @@ export const BillsView: React.FC<BillsViewProps> = ({
 
                       <button
                         onClick={() => handleDeleteRecurring(rec.id)}
-                        className="p-2 text-[#6B6B67] hover:text-[#B91C1C] hover:bg-red-50 rounded-xl transition-colors cursor-pointer"
+                        className="p-2 text-[#6B6B67] hover:text-[#B91C1C] hover:bg-red-50 rounded-xl transition-colors cursor-pointer shrink-0"
                         title="Delete Schedule"
                       >
                         <Trash2 className="w-4 h-4" />

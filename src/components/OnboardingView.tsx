@@ -11,9 +11,9 @@ interface OnboardingViewProps {
 export const OnboardingView: React.FC<OnboardingViewProps> = ({ user, onComplete }) => {
   const [step, setStep] = useState<1 | 2 | 3 | 4>(1);
   const [currency, setCurrency] = useState(user.currency || 'PHP');
-  const [monthlyIncome, setMonthlyIncome] = useState(user.monthly_income ? String(user.monthly_income) : '35000');
-  const [goalName, setGoalName] = useState('Emergency Fund');
-  const [goalTarget, setGoalTarget] = useState('60000');
+  const [monthlyIncome, setMonthlyIncome] = useState(user.monthly_income ? String(user.monthly_income) : '');
+  const [goalName, setGoalName] = useState('');
+  const [goalTarget, setGoalTarget] = useState('');
   const [loading, setLoading] = useState(false);
 
   const steps = [
@@ -173,7 +173,7 @@ export const OnboardingView: React.FC<OnboardingViewProps> = ({ user, onComplete
                       type="number"
                       value={monthlyIncome}
                       onChange={(e) => setMonthlyIncome(e.target.value)}
-                      placeholder="35000"
+                      placeholder="e.g. 35000"
                       className="w-full pl-9 pr-3.5 py-2.5 bg-[#FFFFFF] border border-[#D9D9D4] rounded-xl text-sm text-[#111111] focus:outline-none focus:border-[#2563EB] tabular-nums"
                     />
                   </div>
@@ -276,7 +276,7 @@ export const OnboardingView: React.FC<OnboardingViewProps> = ({ user, onComplete
                     type="text"
                     value={goalName}
                     onChange={(e) => setGoalName(e.target.value)}
-                    placeholder="Emergency Fund"
+                    placeholder="e.g. Emergency Fund"
                     className="w-full py-2.5 px-3.5 bg-[#FFFFFF] border border-[#D9D9D4] rounded-xl text-sm text-[#111111] focus:outline-none focus:border-[#2563EB]"
                   />
                 </div>
@@ -294,7 +294,7 @@ export const OnboardingView: React.FC<OnboardingViewProps> = ({ user, onComplete
                       type="number"
                       value={goalTarget}
                       onChange={(e) => setGoalTarget(e.target.value)}
-                      placeholder="60000"
+                      placeholder="e.g. 60000"
                       className="w-full pl-9 pr-3.5 py-2.5 bg-[#FFFFFF] border border-[#D9D9D4] rounded-xl text-sm text-[#111111] focus:outline-none focus:border-[#2563EB] tabular-nums"
                     />
                   </div>

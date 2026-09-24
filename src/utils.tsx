@@ -123,6 +123,7 @@ export function getStoredToken(): string | null {
 }
 
 export function setStoredToken(token: string | null) {
+  clearClientCache();
   if (token) {
     localStorage.setItem(TOKEN_STORAGE_KEY, token);
   } else {
@@ -146,8 +147,8 @@ export function clearClientCache(prefix?: string) {
     clientCache.clear();
     return;
   }
-  for (const key of clientCache.keys()) {
-    if (key.startsWith(prefix)) {
+  for (const key of Array.from(clientCache.keys())) {
+    if (key.startsWith(prefix) || key.includes(prefix)) {
       clientCache.delete(key);
     }
   }
@@ -213,11 +214,27 @@ export async function apiFetch(url: string, options: RequestInit = {}): Promise<
   return response;
 }
 
+export async function apiFetchFresh<T = any>(
+  url: string,
+  options?: RequestInit
+): Promise<T> {
+  clearClientCache(url);
+  const data = await apiFetch(url, { ...options, cache: 'no-store' });
+  setCachedData(url, data);
+  return data as T;
+}
+
 export async function apiFetchCached<T = any>(
   url: string,
   options?: RequestInit,
   onBackgroundUpdate?: (freshData: T) => void
 ): Promise<T> {
+  if (options?.cache === 'no-store' || (options?.method && options.method.toUpperCase() !== 'GET')) {
+    const data = await apiFetch(url, options);
+    setCachedData(url, data);
+    return data as T;
+  }
+
   const cached = getCachedData<T>(url);
   if (cached !== null) {
     // Revalidate in background
