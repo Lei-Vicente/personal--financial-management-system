@@ -35,20 +35,6 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Load available accounts
-  useEffect(() => {
-    if (isOpen) {
-      apiFetchCached<any>('/api/accounts').then((res) => {
-        const list = res.accounts || [];
-        setAccounts(list);
-        if (!transactionToEdit && list.length > 0 && !accountId) {
-          const def = list.find((a: Account) => a.is_default === 1) || list[0];
-          setAccountId(def.id);
-        }
-      }).catch(console.error);
-    }
-  }, [isOpen]);
-
   // Sync state on open/edit
   useEffect(() => {
     if (transactionToEdit) {
@@ -75,6 +61,38 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
     }
     setError(null);
   }, [transactionToEdit, isOpen, defaultType, categories]);
+
+  // Load available accounts
+  useEffect(() => {
+    if (isOpen) {
+      apiFetchCached<any>('/api/accounts').then((res) => {
+        const list = res.accounts || [];
+        setAccounts(list);
+        if (!transactionToEdit && list.length > 0 && !accountId) {
+          const def = list.find((a: Account) => a.is_default === 1) || list[0];
+          setAccountId(def.id);
+          handleAccountChange(def.id);
+        }
+      }).catch(console.error);
+    }
+  }, [isOpen]);
+
+  const [showAdvancedMethod, setShowAdvancedMethod] = useState(false);
+
+  // Auto-sync payment method when account changes
+  const handleAccountChange = (accId: string) => {
+    setAccountId(accId);
+    const selected = accounts.find((a: Account) => a.id === accId);
+    if (selected) {
+      const lower = selected.name.toLowerCase();
+      if (lower.includes('gcash')) setPaymentMethod('GCash');
+      else if (lower.includes('maya')) setPaymentMethod('Maya');
+      else if (selected.type === 'CASH') setPaymentMethod('Cash');
+      else if (selected.type === 'BANK') setPaymentMethod('Bank Transfer');
+      else if (selected.type === 'CREDIT') setPaymentMethod('Credit Card');
+      else setPaymentMethod(selected.name);
+    }
+  };
 
   // When type toggles, choose appropriate category
   const handleTypeChange = (newType: 'INCOME' | 'EXPENSE') => {
@@ -255,27 +273,8 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
             />
           </div>
 
-          {/* Wallet / Account & Category */}
+          {/* Category & Wallet / Account (Auto-syncs payment method) */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-xs font-semibold uppercase tracking-wider text-[#111111] mb-1.5">
-                Wallet / Account
-              </label>
-              <select
-                id="trans-account-select"
-                value={accountId}
-                onChange={(e) => setAccountId(e.target.value)}
-                className="w-full py-2.5 px-3.5 bg-[#FFFFFF] border border-[#D9D9D4] rounded-xl text-sm text-[#111111] focus:outline-none focus:border-[#2563EB]"
-              >
-                <option value="">No specific account</option>
-                {accounts.map((acc) => (
-                  <option key={acc.id} value={acc.id}>
-                    {acc.name} ({formatMoney(acc.current_balance ?? acc.balance ?? 0, currency)})
-                  </option>
-                ))}
-              </select>
-            </div>
-
             <div>
               <label className="block text-xs font-semibold uppercase tracking-wider text-[#111111] mb-1.5">
                 Category
@@ -293,26 +292,57 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
                 ))}
               </select>
             </div>
+
+            <div>
+              <label className="block text-xs font-semibold uppercase tracking-wider text-[#111111] mb-1.5">
+                Wallet / Account
+              </label>
+              <select
+                id="trans-account-select"
+                value={accountId}
+                onChange={(e) => handleAccountChange(e.target.value)}
+                className="w-full py-2.5 px-3.5 bg-[#FFFFFF] border border-[#D9D9D4] rounded-xl text-sm text-[#111111] focus:outline-none focus:border-[#2563EB]"
+              >
+                <option value="">No specific account</option>
+                {accounts.map((acc: Account) => (
+                  <option key={acc.id} value={acc.id}>
+                    {acc.name} ({formatMoney(acc.current_balance ?? acc.balance ?? 0, currency)})
+                  </option>
+                ))}
+              </select>
+            </div>
           </div>
 
+          {/* Optional Payment Method Label Override */}
           <div>
-            <label className="block text-xs font-semibold uppercase tracking-wider text-[#111111] mb-1.5">
-              Payment Method
-            </label>
-            <select
-              id="trans-payment-select"
-              value={paymentMethod}
-              onChange={(e) => setPaymentMethod(e.target.value)}
-              className="w-full py-2.5 px-3.5 bg-[#FFFFFF] border border-[#D9D9D4] rounded-xl text-sm text-[#111111] focus:outline-none focus:border-[#2563EB]"
-            >
-              <option value="Credit Card">Credit Card</option>
-              <option value="Debit Card">Debit Card</option>
-              <option value="Cash">Cash</option>
-              <option value="GCash">GCash</option>
-              <option value="Maya">Maya</option>
-              <option value="Bank Transfer">Bank Transfer</option>
-              <option value="Other">Other</option>
-            </select>
+            <div className="flex items-center justify-between mb-1">
+              <span className="text-[11px] text-[#6B6B67]">
+                Payment Method: <span className="font-semibold text-[#111111]">{paymentMethod}</span>
+              </span>
+              <button
+                type="button"
+                onClick={() => setShowAdvancedMethod(!showAdvancedMethod)}
+                className="text-[11px] text-[#2563EB] hover:underline font-semibold cursor-pointer"
+              >
+                {showAdvancedMethod ? 'Hide method override' : 'Change method label'}
+              </button>
+            </div>
+            {showAdvancedMethod && (
+              <select
+                id="trans-payment-select"
+                value={paymentMethod}
+                onChange={(e) => setPaymentMethod(e.target.value)}
+                className="w-full py-2 px-3 bg-[#FFFFFF] border border-[#D9D9D4] rounded-xl text-xs text-[#111111] focus:outline-none focus:border-[#2563EB] animate-fadeIn mt-1"
+              >
+                <option value="Cash">Cash</option>
+                <option value="GCash">GCash</option>
+                <option value="Maya">Maya</option>
+                <option value="Bank Transfer">Bank Transfer</option>
+                <option value="Credit Card">Credit Card</option>
+                <option value="Debit Card">Debit Card</option>
+                <option value="Other">Other</option>
+              </select>
+            )}
           </div>
 
           {/* Notes */}

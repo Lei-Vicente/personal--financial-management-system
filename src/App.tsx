@@ -9,7 +9,6 @@ import { TransactionsView } from './views/TransactionsView.tsx';
 import { BudgetsView } from './views/BudgetsView.tsx';
 import { SavingsView } from './views/SavingsView.tsx';
 import { AnalyticsView } from './views/AnalyticsView.tsx';
-import { ReportsView } from './views/ReportsView.tsx';
 import { SettingsView } from './views/SettingsView.tsx';
 import { TransactionModal } from './components/TransactionModal.tsx';
 import { BudgetModal } from './components/BudgetModal.tsx';
@@ -217,12 +216,8 @@ export default function App() {
           />
         )}
 
-        {currentTab === 'analytics' && (
-          <AnalyticsView user={currentUser} dataVersion={dataVersion} />
-        )}
-
-        {currentTab === 'reports' && (
-          <ReportsView user={currentUser} categories={categories} dataVersion={dataVersion} />
+        {(currentTab === 'analytics' || currentTab === 'reports') && (
+          <AnalyticsView user={currentUser} categories={categories} dataVersion={dataVersion} />
         )}
 
         {currentTab === 'settings' && (

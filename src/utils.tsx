@@ -219,18 +219,18 @@ export async function apiFetchCached<T = any>(
   onBackgroundUpdate?: (freshData: T) => void
 ): Promise<T> {
   const cached = getCachedData<T>(url);
-  if (cached) {
-    // Trigger background revalidation if callback provided
-    if (onBackgroundUpdate) {
-      apiFetch(url, options)
-        .then((fresh) => {
-          setCachedData(url, fresh);
+  if (cached !== null) {
+    // Revalidate in background
+    apiFetch(url, options)
+      .then((fresh) => {
+        setCachedData(url, fresh);
+        if (onBackgroundUpdate) {
           onBackgroundUpdate(fresh);
-        })
-        .catch(() => {
-          // ignore background revalidation errors if cached copy exists
-        });
-    }
+        }
+      })
+      .catch(() => {
+        // ignore background revalidation errors if cached copy exists
+      });
     return cached;
   }
 

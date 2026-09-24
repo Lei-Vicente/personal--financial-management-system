@@ -26,7 +26,7 @@ export const handleDashboardAnalytics = async (req: AuthRequest, res: Response) 
     const prevEndDate = `${prevMonthStr}-${String(prevDaysInMonth).padStart(2, '0')}`;
 
     // Execute all dashboard queries concurrently for maximum performance
-    const [allTimeRow, curMonthRow, prevMonthRow, largestCatRow, categoryBreakdown] = await Promise.all([
+    const [allTimeRow, accountRows, curMonthRow, prevMonthRow, largestCatRow, categoryBreakdown] = await Promise.all([
       db.prepare(`
         SELECT
           COALESCE(SUM(CASE WHEN type = 'INCOME' THEN amount ELSE 0 END), 0) as total_income,
@@ -34,6 +34,17 @@ export const handleDashboardAnalytics = async (req: AuthRequest, res: Response) 
         FROM transactions
         WHERE user_id = ?
       `).get(userId).catch(() => ({ total_income: 0, total_expense: 0 })),
+
+      db.prepare(`
+        SELECT a.balance,
+          COALESCE(
+            (SELECT SUM(CASE WHEN t.type = 'INCOME' THEN t.amount ELSE -t.amount END)
+             FROM transactions t
+             WHERE t.account_id = a.id AND t.user_id = a.user_id), 0
+          ) as net_activity
+        FROM accounts a
+        WHERE a.user_id = ?
+      `).all(userId).catch(() => []),
 
       db.prepare(`
         SELECT
@@ -71,13 +82,19 @@ export const handleDashboardAnalytics = async (req: AuthRequest, res: Response) 
       `).all(userId, curStartDate, curEndDate).catch(() => []),
     ]);
 
-    const allTimeBalance = (Number(allTimeRow?.total_income) || 0) - (Number(allTimeRow?.total_expense) || 0);
-    const curIncome = Number(curMonthRow?.income) || 0;
-    const curExpense = Number(curMonthRow?.expense) || 0;
+    // Unify all-time balance with user liquid accounts if accounts exist
+    let allTimeBalance = (Number((allTimeRow as any)?.total_income) || 0) - (Number((allTimeRow as any)?.total_expense) || 0);
+    const accList = (accountRows as any[]) || [];
+    if (accList.length > 0) {
+      allTimeBalance = accList.reduce((sum: number, a: any) => sum + (Number(a.balance || 0) + Number(a.net_activity || 0)), 0);
+    }
+
+    const curIncome = Number((curMonthRow as any)?.income) || 0;
+    const curExpense = Number((curMonthRow as any)?.expense) || 0;
     const curNet = curIncome - curExpense;
 
-    const prevIncome = Number(prevMonthRow?.income) || 0;
-    const prevExpense = Number(prevMonthRow?.expense) || 0;
+    const prevIncome = Number((prevMonthRow as any)?.income) || 0;
+    const prevExpense = Number((prevMonthRow as any)?.expense) || 0;
     const prevNet = prevIncome - prevExpense;
 
     // Percentage changes

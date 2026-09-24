@@ -62,13 +62,12 @@ export const Navigation: React.FC<NavigationProps> = ({
     { id: 'dashboard', label: 'Dashboard', icon: <LayoutDashboard className="w-5 h-5" /> },
     { id: 'transactions', label: 'Transactions', icon: <Receipt className="w-5 h-5" /> },
     { id: 'budgets', label: 'Budgets', icon: <PieChart className="w-5 h-5" /> },
-    { id: 'savings', label: 'Savings Goals', icon: <PiggyBank className="w-5 h-5" /> },
-    { id: 'analytics', label: 'Analytics', icon: <BarChart3 className="w-5 h-5" /> },
-    { id: 'reports', label: 'Reports', icon: <FileText className="w-5 h-5" /> },
+    { id: 'savings', label: 'Savings & Wallets', icon: <PiggyBank className="w-5 h-5" /> },
+    { id: 'analytics', label: 'Analytics & Reports', icon: <BarChart3 className="w-5 h-5" /> },
   ];
 
   const handleNavClick = (tab: NavTab) => {
-    onTabChange(tab);
+    onTabChange(tab === 'reports' ? 'analytics' : tab);
     setMobileMenuOpen(false);
   };
 
@@ -95,7 +94,7 @@ export const Navigation: React.FC<NavigationProps> = ({
             Core Modules
           </div>
           {navItems.map((item) => {
-            const isActive = currentTab === item.id;
+            const isActive = currentTab === item.id || (item.id === 'analytics' && currentTab === 'reports');
             return (
               <button
                 key={item.id}
@@ -269,7 +268,7 @@ export const Navigation: React.FC<NavigationProps> = ({
                   key={item.id}
                   onClick={() => handleNavClick(item.id)}
                   className={`w-full flex items-center space-x-3 px-4 py-3 rounded-xl text-sm font-medium ${
-                    currentTab === item.id
+                    currentTab === item.id || (item.id === 'analytics' && currentTab === 'reports')
                       ? 'bg-[#111111] text-white'
                       : 'text-[#111111] dark:text-[#E8E8E6] hover:bg-[#EBEBE7] dark:hover:bg-[#2A2A28]'
                   }`}
