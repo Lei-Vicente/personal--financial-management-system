@@ -162,7 +162,7 @@ export default function App() {
       />
 
       {/* Main Workspace Canvas */}
-      <main className="flex-1 min-w-0 p-4 sm:p-6 lg:p-8 xl:p-10 max-w-[1600px] mx-auto w-full">
+      <main className="flex-1 min-w-0 p-4 pb-24 sm:p-6 sm:pb-28 lg:p-8 xl:p-10 max-w-[1600px] mx-auto w-full">
         {currentTab === 'dashboard' && (
           <DashboardView
             user={currentUser}

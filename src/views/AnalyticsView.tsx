@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { BarChart3, TrendingUp, TrendingDown, PieChart, Wallet, Calendar } from 'lucide-react';
 import { User, DashboardAnalytics } from '../types.ts';
-import { apiFetch, formatMoney, getCategoryIcon } from '../utils.tsx';
+import { apiFetch, apiFetchCached, getCachedData, formatMoney, getCategoryIcon } from '../utils.tsx';
 import { SpendingChart } from '../components/SpendingChart.tsx';
 
 interface AnalyticsViewProps {
@@ -10,14 +10,13 @@ interface AnalyticsViewProps {
 }
 
 export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ user, dataVersion }) => {
-  const [analytics, setAnalytics] = useState<DashboardAnalytics | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [analytics, setAnalytics] = useState<DashboardAnalytics | null>(() => getCachedData('/api/analytics/dashboard'));
+  const [loading, setLoading] = useState(() => !getCachedData('/api/analytics/dashboard'));
 
   useEffect(() => {
     const loadAnalytics = async () => {
-      setLoading(true);
       try {
-        const res = await apiFetch('/api/analytics/dashboard');
+        const res = await apiFetchCached<DashboardAnalytics>('/api/analytics/dashboard');
         setAnalytics(res);
       } catch (err) {
         console.error('Failed to load analytics:', err);

@@ -10,7 +10,7 @@ import {
   AlertCircle
 } from 'lucide-react';
 import { User, Category, Transaction } from '../types.ts';
-import { apiFetch, formatMoney, downloadCsvFile } from '../utils.tsx';
+import { apiFetch, apiFetchCached, getCachedData, formatMoney, downloadCsvFile } from '../utils.tsx';
 import { TransactionItem } from '../components/InteractiveCards.tsx';
 
 interface TransactionsViewProps {
@@ -32,9 +32,9 @@ export const TransactionsView: React.FC<TransactionsViewProps> = ({
   dataVersion,
   onDataChanged,
 }) => {
-  const [transactions, setTransactions] = useState<Transaction[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [total, setTotal] = useState(0);
+  const [transactions, setTransactions] = useState<Transaction[]>(() => getCachedData<any>('/api/transactions?page=1&limit=15')?.transactions || []);
+  const [loading, setLoading] = useState(() => !getCachedData('/api/transactions?page=1&limit=15'));
+  const [total, setTotal] = useState<number>(() => getCachedData<any>('/api/transactions?page=1&limit=15')?.total || 0);
 
   // Filters & Sorting state
   const [search, setSearch] = useState('');
@@ -57,7 +57,7 @@ export const TransactionsView: React.FC<TransactionsViewProps> = ({
   }, [initialFilter]);
 
   const loadTransactions = async () => {
-    setLoading(true);
+    if (transactions.length === 0) setLoading(true);
     try {
       const params = new URLSearchParams();
       if (search.trim()) params.append('search', search.trim());
@@ -70,7 +70,8 @@ export const TransactionsView: React.FC<TransactionsViewProps> = ({
       params.append('page', String(page));
       params.append('limit', String(limit));
 
-      const res = await apiFetch(`/api/transactions?${params.toString()}`);
+      const queryUrl = `/api/transactions?${params.toString()}`;
+      const res = await apiFetchCached<any>(queryUrl);
       setTransactions(res.transactions || []);
       setTotal(res.total || 0);
     } catch (err) {
@@ -86,12 +87,16 @@ export const TransactionsView: React.FC<TransactionsViewProps> = ({
 
   const handleDelete = async (id: string) => {
     if (!window.confirm('Are you sure you want to delete this transaction permanently?')) return;
+    // Optimistic UI update: instantly remove from list
+    setTransactions((prev) => prev.filter((t) => t.id !== id));
+    setTotal((prev) => Math.max(0, prev - 1));
     try {
       await apiFetch(`/api/transactions/${id}`, { method: 'DELETE' });
       loadTransactions();
       onDataChanged?.();
     } catch (err) {
       console.error('Failed to delete transaction:', err);
+      loadTransactions();
     }
   };
 
@@ -264,8 +269,21 @@ export const TransactionsView: React.FC<TransactionsViewProps> = ({
 
       {/* Transaction List */}
       <div className="space-y-2">
-        {loading ? (
-          <div className="py-16 text-center text-xs text-[#6B6B67]">Loading transactions...</div>
+        {loading && transactions.length === 0 ? (
+          <div className="space-y-2.5 animate-pulse">
+            {[1, 2, 3, 4, 5].map((i) => (
+              <div key={i} className="bg-white border border-[#D9D9D4] rounded-2xl p-4 flex items-center justify-between shadow-xs">
+                <div className="flex items-center space-x-3.5">
+                  <div className="w-10 h-10 rounded-xl bg-gray-200"></div>
+                  <div className="space-y-2">
+                    <div className="h-4 w-36 bg-gray-200 rounded"></div>
+                    <div className="h-3 w-24 bg-gray-100 rounded"></div>
+                  </div>
+                </div>
+                <div className="h-5 w-20 bg-gray-200 rounded"></div>
+              </div>
+            ))}
+          </div>
         ) : transactions.length === 0 ? (
           <div className="bg-[#FFFFFF] border border-[#D9D9D4] rounded-2xl p-12 text-center space-y-3">
             <p className="text-sm font-semibold text-[#111111]">No matching transactions found.</p>

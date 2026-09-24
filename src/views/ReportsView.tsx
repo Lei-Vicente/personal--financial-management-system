@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { FileText, Download, Printer, Calendar, ArrowUpRight, ArrowDownRight, Tag } from 'lucide-react';
 import { User, Category } from '../types.ts';
-import { apiFetch, formatMoney, downloadCsvFile } from '../utils.tsx';
+import { apiFetch, apiFetchCached, getCachedData, formatMoney, downloadCsvFile } from '../utils.tsx';
 
 interface ReportsViewProps {
   user: User;
@@ -17,13 +17,14 @@ export const ReportsView: React.FC<ReportsViewProps> = ({ user, categories, data
   });
   const [selectedYear, setSelectedYear] = useState(() => String(new Date().getFullYear()));
 
-  const [summary, setSummary] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
+  const reportUrl = `/api/reports/summary?type=${reportType}&month=${selectedMonth}&year=${selectedYear}`;
+  const [summary, setSummary] = useState<any>(() => getCachedData(reportUrl));
+  const [loading, setLoading] = useState(() => !getCachedData(reportUrl));
 
   const loadReport = async () => {
-    setLoading(true);
+    if (!summary) setLoading(true);
     try {
-      const res = await apiFetch(`/api/reports/summary?type=${reportType}&month=${selectedMonth}&year=${selectedYear}`);
+      const res = await apiFetchCached<any>(`/api/reports/summary?type=${reportType}&month=${selectedMonth}&year=${selectedYear}`);
       setSummary(res);
     } catch (err) {
       console.error('Failed to load report summary:', err);

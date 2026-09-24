@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { PieChart, Plus, AlertCircle, Calendar, Trash2, CheckCircle2 } from 'lucide-react';
 import { User, Category, Budget } from '../types.ts';
-import { apiFetch, formatMoney } from '../utils.tsx';
+import { apiFetch, apiFetchCached, getCachedData, formatMoney } from '../utils.tsx';
 import { BudgetCard } from '../components/InteractiveCards.tsx';
 
 interface BudgetsViewProps {
@@ -26,13 +26,12 @@ export const BudgetsView: React.FC<BudgetsViewProps> = ({
     return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
   });
 
-  const [budgets, setBudgets] = useState<Budget[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [budgets, setBudgets] = useState<Budget[]>(() => getCachedData<any>(`/api/budgets?month=${currentMonth}`)?.budgets || []);
+  const [loading, setLoading] = useState(() => !getCachedData(`/api/budgets?month=${currentMonth}`));
 
   const loadBudgets = async () => {
-    setLoading(true);
     try {
-      const res = await apiFetch(`/api/budgets?month=${currentMonth}`);
+      const res = await apiFetchCached<any>(`/api/budgets?month=${currentMonth}`);
       setBudgets(res.budgets || []);
     } catch (err) {
       console.error('Failed to load budgets:', err);
@@ -47,12 +46,15 @@ export const BudgetsView: React.FC<BudgetsViewProps> = ({
 
   const handleDeleteBudget = async (id: string, name: string) => {
     if (!window.confirm(`Delete monthly budget for ${name}?`)) return;
+    // Optimistic delete
+    setBudgets(prev => prev.filter(b => b.id !== id));
     try {
       await apiFetch(`/api/budgets/${id}`, { method: 'DELETE' });
       loadBudgets();
       onDataChanged?.();
     } catch (err) {
       console.error('Failed to delete budget:', err);
+      loadBudgets();
     }
   };
 
@@ -162,8 +164,19 @@ export const BudgetsView: React.FC<BudgetsViewProps> = ({
           Category Allocations
         </h2>
 
-        {loading ? (
-          <div className="py-16 text-center text-xs text-[#6B6B67]">Loading budget allocations...</div>
+        {loading && budgets.length === 0 ? (
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-5 animate-pulse">
+            {[1, 2, 3, 4].map((i) => (
+              <div key={i} className="bg-white border border-[#D9D9D4] rounded-2xl p-6 h-40 shadow-xs">
+                <div className="flex justify-between items-center mb-4">
+                  <div className="h-5 w-32 bg-gray-200 rounded"></div>
+                  <div className="h-5 w-16 bg-gray-200 rounded-full"></div>
+                </div>
+                <div className="h-8 w-40 bg-gray-200 rounded mb-4"></div>
+                <div className="h-2.5 bg-gray-100 rounded-full"></div>
+              </div>
+            ))}
+          </div>
         ) : budgets.length === 0 ? (
           <div className="bg-[#FFFFFF] border border-[#D9D9D4] rounded-2xl p-12 text-center space-y-3">
             <p className="text-sm font-semibold text-[#111111]">No category budgets set for this month.</p>

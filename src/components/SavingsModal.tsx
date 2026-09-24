@@ -67,8 +67,8 @@ export const AddGoalModal: React.FC<AddGoalModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4 animate-fadeIn">
-      <div className="bg-[#FFFFFF] border border-[#D9D9D4] rounded-2xl w-full max-w-md shadow-xl overflow-hidden">
-        <div className="px-6 py-4 border-b border-[#D9D9D4] flex items-center justify-between">
+      <div className="bg-[#FFFFFF] border border-[#D9D9D4] rounded-2xl w-full max-w-md shadow-xl overflow-hidden max-h-[90vh] flex flex-col">
+        <div className="px-6 py-4 border-b border-[#D9D9D4] flex items-center justify-between shrink-0">
           <h2 className="text-base font-bold text-[#111111] tracking-tight">Create Savings Goal</h2>
           <button onClick={onClose} className="p-1.5 text-[#6B6B67] hover:text-[#111111] rounded-lg hover:bg-[#EBEBE7] transition-colors cursor-pointer">
             <X className="w-5 h-5" />
@@ -76,13 +76,13 @@ export const AddGoalModal: React.FC<AddGoalModalProps> = ({
         </div>
 
         {error && (
-          <div className="mx-6 mt-4 p-3 bg-red-50 border border-red-200 rounded-xl flex items-center space-x-2 text-xs text-[#B91C1C]">
+          <div className="mx-6 mt-4 p-3 bg-red-50 border border-red-200 rounded-xl flex items-center space-x-2 text-xs text-[#B91C1C] shrink-0">
             <AlertCircle className="w-4 h-4 shrink-0" />
             <span>{error}</span>
           </div>
         )}
 
-        <form onSubmit={handleSubmit} className="p-6 space-y-4">
+        <form onSubmit={handleSubmit} className="p-6 space-y-4 overflow-y-auto flex-1">
           <div>
             <label className="block text-xs font-semibold uppercase tracking-wider text-[#111111] mb-1.5">
               Goal Name
@@ -237,8 +237,8 @@ export const AddContributionModal: React.FC<AddContributionModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4 animate-fadeIn">
-      <div className="bg-[#FFFFFF] border border-[#D9D9D4] rounded-2xl w-full max-w-md shadow-xl overflow-hidden">
-        <div className="px-6 py-4 border-b border-[#D9D9D4] flex items-center justify-between">
+      <div className="bg-[#FFFFFF] border border-[#D9D9D4] rounded-2xl w-full max-w-md shadow-xl overflow-hidden max-h-[90vh] flex flex-col">
+        <div className="px-6 py-4 border-b border-[#D9D9D4] flex items-center justify-between shrink-0">
           <div>
             <h2 className="text-base font-bold text-[#111111] tracking-tight">Deposit into Savings</h2>
             <p className="text-xs text-[#6B6B67]">{goal.name}</p>
@@ -249,13 +249,13 @@ export const AddContributionModal: React.FC<AddContributionModalProps> = ({
         </div>
 
         {error && (
-          <div className="mx-6 mt-4 p-3 bg-red-50 border border-red-200 rounded-xl flex items-center space-x-2 text-xs text-[#B91C1C]">
+          <div className="mx-6 mt-4 p-3 bg-red-50 border border-red-200 rounded-xl flex items-center space-x-2 text-xs text-[#B91C1C] shrink-0">
             <AlertCircle className="w-4 h-4 shrink-0" />
             <span>{error}</span>
           </div>
         )}
 
-        <form onSubmit={handleSubmit} className="p-6 space-y-4">
+        <form onSubmit={handleSubmit} className="p-6 space-y-4 overflow-y-auto flex-1">
           <div>
             <label className="block text-xs font-semibold uppercase tracking-wider text-[#111111] mb-1.5">
               Deposit Amount ({CURRENCY_MAP[currency]?.symbol || '₱'})

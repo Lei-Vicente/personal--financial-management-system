@@ -7,7 +7,7 @@ import {
   Plus
 } from 'lucide-react';
 import { User, Category, Transaction, Budget, SavingsGoal, DashboardAnalytics } from '../types.ts';
-import { apiFetch } from '../utils.tsx';
+import { apiFetch, apiFetchCached, getCachedData } from '../utils.tsx';
 import { BalanceCard, IncomeCard, ExpenseCard, BudgetCard, SavingsGoalCard, TransactionItem } from '../components/InteractiveCards.tsx';
 
 interface DashboardViewProps {
@@ -35,11 +35,12 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   dataVersion,
   onDataChanged,
 }) => {
-  const [analytics, setAnalytics] = useState<DashboardAnalytics | null>(null);
-  const [recentTransactions, setRecentTransactions] = useState<Transaction[]>([]);
-  const [budgets, setBudgets] = useState<Budget[]>([]);
-  const [savingsGoals, setSavingsGoals] = useState<SavingsGoal[]>([]);
-  const [loading, setLoading] = useState(true);
+  // Synchronous cache initialization for instantaneous 0ms rendering
+  const [analytics, setAnalytics] = useState<DashboardAnalytics | null>(() => getCachedData('/api/analytics/dashboard'));
+  const [recentTransactions, setRecentTransactions] = useState<Transaction[]>(() => getCachedData<any>('/api/transactions?limit=6')?.transactions || []);
+  const [budgets, setBudgets] = useState<Budget[]>(() => getCachedData<any>('/api/budgets')?.budgets || []);
+  const [savingsGoals, setSavingsGoals] = useState<SavingsGoal[]>(() => getCachedData<any>('/api/savings-goals')?.goals || []);
+  const [loading, setLoading] = useState(() => !getCachedData('/api/analytics/dashboard'));
 
   // Time-aware greeting
   const getGreeting = () => {
@@ -50,13 +51,12 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   };
 
   const loadDashboardData = async () => {
-    setLoading(true);
     try {
       const [analyticsRes, transRes, budgetsRes, savingsRes] = await Promise.all([
-        apiFetch('/api/analytics/dashboard'),
-        apiFetch('/api/transactions?limit=6'),
-        apiFetch('/api/budgets'),
-        apiFetch('/api/savings-goals'),
+        apiFetchCached<DashboardAnalytics>('/api/analytics/dashboard'),
+        apiFetchCached<any>('/api/transactions?limit=6'),
+        apiFetchCached<any>('/api/budgets'),
+        apiFetchCached<any>('/api/savings-goals'),
       ]);
 
       setAnalytics(analyticsRes);
@@ -76,12 +76,15 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
 
   const handleDeleteTransaction = async (id: string) => {
     if (!window.confirm('Are you sure you want to delete this transaction?')) return;
+    // Optimistic UI update: instantly remove from state
+    setRecentTransactions(prev => prev.filter(t => t.id !== id));
     try {
       await apiFetch(`/api/transactions/${id}`, { method: 'DELETE' });
       loadDashboardData();
       onDataChanged?.();
     } catch (err) {
       console.error('Failed to delete transaction:', err);
+      loadDashboardData();
     }
   };
 
@@ -98,35 +101,65 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
       </div>
 
       {/* 2. Interactive Primary Metric Cards (Sections 11 & 12) */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4 sm:gap-5">
-        <BalanceCard
-          totalBalance={analytics?.balance?.total_balance || 0}
-          changePct={analytics?.balance?.change_pct || 0}
-          currentIncome={analytics?.income?.current_month || 0}
-          currentExpense={analytics?.expense?.current_month || 0}
-          currentNet={analytics?.balance?.current_net || 0}
-          previousNet={analytics?.balance?.previous_net || 0}
-          currency={user.currency}
-        />
+      {loading && !analytics ? (
+        <div className="space-y-8 animate-pulse">
+          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4 sm:gap-5">
+            {[1, 2, 3].map((i) => (
+              <div key={i} className="bg-white border border-[#D9D9D4] rounded-2xl p-6 h-36 flex flex-col justify-between shadow-xs">
+                <div className="h-4 w-28 bg-gray-200 rounded"></div>
+                <div className="h-9 w-36 bg-gray-200 rounded"></div>
+                <div className="h-3.5 w-44 bg-gray-200 rounded"></div>
+              </div>
+            ))}
+          </div>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 sm:gap-6 min-w-0">
+            <div className="bg-white border border-[#D9D9D4] rounded-2xl p-6 h-64 shadow-xs">
+              <div className="h-5 w-36 bg-gray-200 rounded mb-4"></div>
+              <div className="space-y-3">
+                <div className="h-16 bg-gray-100 rounded-xl"></div>
+                <div className="h-16 bg-gray-100 rounded-xl"></div>
+              </div>
+            </div>
+            <div className="bg-white border border-[#D9D9D4] rounded-2xl p-6 h-64 shadow-xs">
+              <div className="h-5 w-36 bg-gray-200 rounded mb-4"></div>
+              <div className="space-y-3">
+                <div className="h-16 bg-gray-100 rounded-xl"></div>
+                <div className="h-16 bg-gray-100 rounded-xl"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : (
+        <>
+          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4 sm:gap-5">
+            <BalanceCard
+              totalBalance={analytics?.balance?.total_balance || 0}
+              changePct={analytics?.balance?.change_pct || 0}
+              currentIncome={analytics?.income?.current_month || 0}
+              currentExpense={analytics?.expense?.current_month || 0}
+              currentNet={analytics?.balance?.current_net || 0}
+              previousNet={analytics?.balance?.previous_net || 0}
+              currency={user.currency}
+            />
 
-        <IncomeCard
-          income={analytics?.income?.current_month || 0}
-          changePct={analytics?.income?.change_pct || 0}
-          currency={user.currency}
-          onClick={() => onNavigate('transactions', { type: 'INCOME', categoryId: 'ALL' })}
-        />
+            <IncomeCard
+              income={analytics?.income?.current_month || 0}
+              changePct={analytics?.income?.change_pct || 0}
+              currency={user.currency}
+              onClick={() => onNavigate('transactions', { type: 'INCOME', categoryId: 'ALL' })}
+            />
 
-        <ExpenseCard
-          expense={analytics?.expense?.current_month || 0}
-          changePct={analytics?.expense?.change_pct || 0}
-          largestCategory={analytics?.expense?.largest_category || null}
-          currency={user.currency}
-          onClick={() => onNavigate('transactions', { type: 'EXPENSE', categoryId: 'ALL' })}
-        />
-      </div>
+            <ExpenseCard
+              expense={analytics?.expense?.current_month || 0}
+              changePct={analytics?.expense?.change_pct || 0}
+              largestCategory={analytics?.expense?.largest_category || null}
+              currency={user.currency}
+              onClick={() => onNavigate('transactions', { type: 'EXPENSE', categoryId: 'ALL' })}
+            />
+          </div>
 
-      {/* 3. Two-Column Dashboard Section: Budgets & Savings Goals */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 sm:gap-6 min-w-0">
+          {/* 3. Two-Column Dashboard Section: Budgets & Savings Goals */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 sm:gap-6 min-w-0">
         {/* Monthly Budgets */}
         <div className="bg-[#FFFFFF] border border-[#D9D9D4] rounded-2xl p-5 sm:p-6 shadow-xs flex flex-col justify-between min-w-0">
           <div>
@@ -289,6 +322,8 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           </div>
         )}
       </div>
+        </>
+      )}
     </div>
   );
 };

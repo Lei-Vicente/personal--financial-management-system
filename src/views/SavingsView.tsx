@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { PiggyBank, Plus, TrendingUp, Trash2, Calendar, Target } from 'lucide-react';
 import { User, SavingsGoal } from '../types.ts';
-import { apiFetch, formatMoney } from '../utils.tsx';
+import { apiFetch, apiFetchCached, getCachedData, formatMoney } from '../utils.tsx';
 import { SavingsGoalCard } from '../components/InteractiveCards.tsx';
 
 interface SavingsViewProps {
@@ -19,13 +19,12 @@ export const SavingsView: React.FC<SavingsViewProps> = ({
   dataVersion,
   onDataChanged,
 }) => {
-  const [goals, setGoals] = useState<SavingsGoal[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [goals, setGoals] = useState<SavingsGoal[]>(() => getCachedData<any>('/api/savings-goals')?.goals || []);
+  const [loading, setLoading] = useState(() => !getCachedData('/api/savings-goals'));
 
   const loadGoals = async () => {
-    setLoading(true);
     try {
-      const res = await apiFetch('/api/savings-goals');
+      const res = await apiFetchCached<any>('/api/savings-goals');
       setGoals(res.goals || []);
     } catch (err) {
       console.error('Failed to load savings goals:', err);
@@ -40,12 +39,15 @@ export const SavingsView: React.FC<SavingsViewProps> = ({
 
   const handleDeleteGoal = async (id: string, name: string) => {
     if (!window.confirm(`Delete savings goal "${name}"?`)) return;
+    // Optimistic delete
+    setGoals(prev => prev.filter(g => g.id !== id));
     try {
       await apiFetch(`/api/savings-goals/${id}`, { method: 'DELETE' });
       loadGoals();
       onDataChanged?.();
     } catch (err) {
       console.error('Failed to delete goal:', err);
+      loadGoals();
     }
   };
 
@@ -117,8 +119,20 @@ export const SavingsView: React.FC<SavingsViewProps> = ({
           Active Targets ({goals.length})
         </h2>
 
-        {loading ? (
-          <div className="py-16 text-center text-xs text-[#6B6B67]">Loading savings targets...</div>
+        {loading && goals.length === 0 ? (
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-5 animate-pulse">
+            {[1, 2, 3, 4].map((i) => (
+              <div key={i} className="bg-white border border-[#D9D9D4] rounded-2xl p-6 h-48 shadow-xs">
+                <div className="flex justify-between items-center mb-4">
+                  <div className="h-5 w-36 bg-gray-200 rounded"></div>
+                  <div className="h-5 w-16 bg-gray-200 rounded-full"></div>
+                </div>
+                <div className="h-8 w-44 bg-gray-200 rounded mb-4"></div>
+                <div className="h-3 bg-gray-100 rounded-full mb-3"></div>
+                <div className="h-4 w-28 bg-gray-100 rounded"></div>
+              </div>
+            ))}
+          </div>
         ) : goals.length === 0 ? (
           <div className="bg-[#FFFFFF] border border-[#D9D9D4] rounded-2xl p-12 text-center space-y-3">
             <p className="text-sm font-semibold text-[#111111]">No savings goals created yet.</p>

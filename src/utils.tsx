@@ -111,7 +111,49 @@ export function setStoredToken(token: string | null) {
   }
 }
 
+// ==========================================
+// Client-Side In-Memory Cache (SWR Pattern)
+// ==========================================
+interface CacheEntry {
+  data: any;
+  timestamp: number;
+}
+
+const clientCache = new Map<string, CacheEntry>();
+const CLIENT_CACHE_TTL = 3 * 60 * 1000; // 3 minutes
+
+export function clearClientCache(prefix?: string) {
+  if (!prefix) {
+    clientCache.clear();
+    return;
+  }
+  for (const key of clientCache.keys()) {
+    if (key.startsWith(prefix)) {
+      clientCache.delete(key);
+    }
+  }
+}
+
+export function getCachedData<T = any>(url: string): T | null {
+  const entry = clientCache.get(url);
+  if (!entry) return null;
+  if (Date.now() - entry.timestamp < CLIENT_CACHE_TTL) {
+    return entry.data as T;
+  }
+  return null;
+}
+
+export function setCachedData(url: string, data: any) {
+  clientCache.set(url, { data, timestamp: Date.now() });
+}
+
 export async function apiFetch(url: string, options: RequestInit = {}): Promise<any> {
+  const method = (options.method || 'GET').toUpperCase();
+  // Clear client cache on state mutations
+  if (method !== 'GET') {
+    clearClientCache();
+  }
+
   const token = getStoredToken();
   const headers = new Headers(options.headers || {});
 
@@ -132,6 +174,7 @@ export async function apiFetch(url: string, options: RequestInit = {}): Promise<
   if (response.status === 401) {
     // If unauthorized, token might be invalid
     setStoredToken(null);
+    clearClientCache();
   }
 
   const contentType = response.headers.get('content-type');
@@ -149,6 +192,32 @@ export async function apiFetch(url: string, options: RequestInit = {}): Promise<
   }
 
   return response;
+}
+
+export async function apiFetchCached<T = any>(
+  url: string,
+  options?: RequestInit,
+  onBackgroundUpdate?: (freshData: T) => void
+): Promise<T> {
+  const cached = getCachedData<T>(url);
+  if (cached) {
+    // Trigger background revalidation if callback provided
+    if (onBackgroundUpdate) {
+      apiFetch(url, options)
+        .then((fresh) => {
+          setCachedData(url, fresh);
+          onBackgroundUpdate(fresh);
+        })
+        .catch(() => {
+          // ignore background revalidation errors if cached copy exists
+        });
+    }
+    return cached;
+  }
+
+  const data = await apiFetch(url, options);
+  setCachedData(url, data);
+  return data as T;
 }
 
 export async function downloadCsvFile(endpoint: string, defaultFilename = 'transactions.csv'): Promise<void> {
