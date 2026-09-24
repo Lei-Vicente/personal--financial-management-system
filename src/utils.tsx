@@ -38,17 +38,19 @@ export const CURRENCY_MAP: Record<string, { symbol: string; label: string }> = {
   SGD: { symbol: 'S$', label: 'SGD — Singapore Dollar' },
 };
 
-export function formatMoney(amount: number, currency = 'PHP', showSign = false): string {
+export function formatMoney(amount: number | string | null | undefined, currency = 'PHP', showSign = false): string {
   const meta = CURRENCY_MAP[currency] || { symbol: currency + ' ', label: currency };
-  const absAmount = Math.abs(amount);
+  const num = typeof amount === 'number' ? amount : Number(amount);
+  const safeAmount = isNaN(num) || amount === null || amount === undefined ? 0 : num;
+  const absAmount = Math.abs(safeAmount);
   const formatted = absAmount.toLocaleString('en-US', {
     minimumFractionDigits: currency === 'JPY' ? 0 : 2,
     maximumFractionDigits: currency === 'JPY' ? 0 : 2,
   });
 
   if (showSign) {
-    if (amount > 0) return `+${meta.symbol}${formatted}`;
-    if (amount < 0) return `-${meta.symbol}${formatted}`;
+    if (safeAmount > 0) return `+${meta.symbol}${formatted}`;
+    if (safeAmount < 0) return `-${meta.symbol}${formatted}`;
   }
   return `${meta.symbol}${formatted}`;
 }

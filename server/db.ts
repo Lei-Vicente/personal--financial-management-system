@@ -7,6 +7,10 @@ import pg from 'pg';
 const req = typeof require === 'function' ? require : createRequire(path.join(process.cwd(), 'package.json'));
 const { Pool } = pg;
 
+// Ensure PostgreSQL NUMERIC (OID 1700) and BIGINT (OID 20) are parsed to JavaScript numbers
+pg.types.setTypeParser(1700, (val: string) => parseFloat(val));
+pg.types.setTypeParser(20, (val: string) => parseInt(val, 10));
+
 // Determine database mode:
 // If DATABASE_URL starts with postgres:// or postgresql://, use PostgreSQL (Supabase).
 // Otherwise, fall back to SQLite for zero-config offline development or tests.

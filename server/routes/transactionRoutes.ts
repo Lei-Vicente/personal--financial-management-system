@@ -90,30 +90,37 @@ transactionRouter.get('/', async (req: AuthRequest, res: Response) => {
       LIMIT ? OFFSET ?
     `;
     const rows = await db.prepare(dataSql).all(...params, limitNum, offset) as any[];
+    const mappedRows = rows.map((r: any) => ({
+      ...r,
+      amount: Number(r.amount) || 0,
+    }));
 
     // Overall summary sums for the current filter scope
     const sumSql = `
       SELECT
-        SUM(CASE WHEN t.type = 'INCOME' THEN t.amount ELSE 0 END) as total_income,
-        SUM(CASE WHEN t.type = 'EXPENSE' THEN t.amount ELSE 0 END) as total_expense
+        COALESCE(SUM(CASE WHEN t.type = 'INCOME' THEN t.amount ELSE 0 END), 0) as total_income,
+        COALESCE(SUM(CASE WHEN t.type = 'EXPENSE' THEN t.amount ELSE 0 END), 0) as total_expense
       FROM transactions t
       LEFT JOIN categories c ON t.category_id = c.id
       WHERE ${whereClause}
     `;
     const sumResult = await db.prepare(sumSql).get(...params) as any;
+    const totalIncome = Number(sumResult?.total_income) || 0;
+    const totalExpense = Number(sumResult?.total_expense) || 0;
+    const totalCount = Number(total) || 0;
 
     return res.json({
-      transactions: rows,
+      transactions: mappedRows,
       pagination: {
         page: pageNum,
         limit: limitNum,
-        total,
-        total_pages: Math.ceil(total / limitNum) || 1,
+        total: totalCount,
+        total_pages: Math.ceil(totalCount / limitNum) || 1,
       },
       summary: {
-        total_income: sumResult?.total_income || 0,
-        total_expense: sumResult?.total_expense || 0,
-        net_amount: (sumResult?.total_income || 0) - (sumResult?.total_expense || 0),
+        total_income: totalIncome,
+        total_expense: totalExpense,
+        net_amount: totalIncome - totalExpense,
       },
     });
   } catch (error: any) {
@@ -141,6 +148,7 @@ transactionRouter.get('/:id', async (req: AuthRequest, res: Response) => {
       return res.status(404).json({ error: 'Transaction not found.' });
     }
 
+    row.amount = Number(row.amount) || 0;
     return res.json({ transaction: row });
   } catch (error: any) {
     return res.status(500).json({ error: 'Failed to fetch transaction details.' });
@@ -317,7 +325,11 @@ transactionRouter.patch('/:id', async (req: AuthRequest, res: Response) => {
       LEFT JOIN categories c ON t.category_id = c.id
       LEFT JOIN accounts a ON t.account_id = a.id
       WHERE t.id = ? AND t.user_id = ?
-    `).get(transId, userId);
+    `).get(transId, userId) as any;
+
+    if (updated) {
+      updated.amount = Number(updated.amount) || 0;
+    }
 
     return res.json({
       message: 'Transaction updated successfully.',

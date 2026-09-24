@@ -34,7 +34,10 @@ export const TransactionsView: React.FC<TransactionsViewProps> = ({
 }) => {
   const [transactions, setTransactions] = useState<Transaction[]>(() => getCachedData<any>('/api/transactions?page=1&limit=15')?.transactions || []);
   const [loading, setLoading] = useState(() => !getCachedData('/api/transactions?page=1&limit=15'));
-  const [total, setTotal] = useState<number>(() => getCachedData<any>('/api/transactions?page=1&limit=15')?.total || 0);
+  const [total, setTotal] = useState<number>(() => {
+    const cached = getCachedData<any>('/api/transactions?page=1&limit=15');
+    return cached?.pagination?.total ?? cached?.total ?? 0;
+  });
 
   // Filters & Sorting state
   const [search, setSearch] = useState('');
@@ -73,7 +76,7 @@ export const TransactionsView: React.FC<TransactionsViewProps> = ({
       const queryUrl = `/api/transactions?${params.toString()}`;
       const res = await apiFetchCached<any>(queryUrl);
       setTransactions(res.transactions || []);
-      setTotal(res.total || 0);
+      setTotal(res.pagination?.total ?? res.total ?? 0);
     } catch (err) {
       console.error('Failed to fetch transactions:', err);
     } finally {
@@ -114,8 +117,12 @@ export const TransactionsView: React.FC<TransactionsViewProps> = ({
   };
 
   // Scope summary calculation
-  const scopeIncome = transactions.filter(t => t.type === 'INCOME').reduce((acc, t) => acc + t.amount, 0);
-  const scopeExpense = transactions.filter(t => t.type === 'EXPENSE').reduce((acc, t) => acc + t.amount, 0);
+  const scopeIncome = transactions
+    .filter(t => t.type === 'INCOME')
+    .reduce((acc, t) => acc + (Number(t.amount) || 0), 0);
+  const scopeExpense = transactions
+    .filter(t => t.type === 'EXPENSE')
+    .reduce((acc, t) => acc + (Number(t.amount) || 0), 0);
 
   return (
     <div className="space-y-6 animate-fadeIn pb-16">
