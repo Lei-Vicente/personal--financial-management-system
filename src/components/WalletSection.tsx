@@ -10,12 +10,14 @@ interface WalletSectionProps {
   user: User;
   dataVersion?: number;
   onDataChanged?: () => void;
+  onOpenAddWallet?: () => void;
 }
 
 export const WalletSection: React.FC<WalletSectionProps> = ({
   user,
   dataVersion,
   onDataChanged,
+  onOpenAddWallet,
 }) => {
   const [accounts, setAccounts] = useState<Account[]>(() => getCachedData<any>('/api/accounts')?.accounts || []);
   const [loading, setLoading] = useState(() => !getCachedData('/api/accounts'));
@@ -79,8 +81,12 @@ export const WalletSection: React.FC<WalletSectionProps> = ({
           <button
             id="add-wallet-btn"
             onClick={() => {
-              setAccountToEdit(null);
-              setIsAccountModalOpen(true);
+              if (onOpenAddWallet) {
+                onOpenAddWallet();
+              } else {
+                setAccountToEdit(null);
+                setIsAccountModalOpen(true);
+              }
             }}
             className="px-3 py-1.5 bg-[#111111] hover:bg-[#2563EB] text-white rounded-xl text-xs font-semibold flex items-center space-x-1.5 transition-colors cursor-pointer shadow-xs"
           >
@@ -120,8 +126,12 @@ export const WalletSection: React.FC<WalletSectionProps> = ({
           </div>
           <button
             onClick={() => {
-              setAccountToEdit(null);
-              setIsAccountModalOpen(true);
+              if (onOpenAddWallet) {
+                onOpenAddWallet();
+              } else {
+                setAccountToEdit(null);
+                setIsAccountModalOpen(true);
+              }
             }}
             className="px-4 py-2 bg-[#111111] hover:bg-[#2563EB] text-white rounded-xl text-xs font-semibold inline-flex items-center space-x-1.5 transition-colors cursor-pointer"
           >

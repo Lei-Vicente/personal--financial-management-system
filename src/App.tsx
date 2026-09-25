@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { User, Category, Transaction, Budget, SavingsGoal, Account } from './types.ts';
+import { User, Category, Transaction, Budget, SavingsGoal, Account, Bill } from './types.ts';
 import { apiFetch, setStoredToken, clearClientCache } from './utils.tsx';
 import { Navigation, NavTab } from './components/Navigation.tsx';
 import { AuthView } from './components/AuthView.tsx';
@@ -14,6 +14,8 @@ import { SettingsView } from './views/SettingsView.tsx';
 import { TransactionModal } from './components/TransactionModal.tsx';
 import { BudgetModal } from './components/BudgetModal.tsx';
 import { AddGoalModal, AddContributionModal } from './components/SavingsModal.tsx';
+import { BillModal } from './components/BillModal.tsx';
+import { AccountModal } from './components/AccountModal.tsx';
 
 export default function App() {
   // Ensure application remains in standard light mode and clean up any leftover theme data
@@ -66,9 +68,25 @@ export default function App() {
   const [isAddGoalModalOpen, setIsAddGoalModalOpen] = useState(false);
   const [selectedGoalForContrib, setSelectedGoalForContrib] = useState<SavingsGoal | null>(null);
 
+  const [isBillModalOpen, setIsBillModalOpen] = useState(false);
+  const [billToEdit, setBillToEdit] = useState<Bill | null>(null);
+
+  const [isAccountModalOpen, setIsAccountModalOpen] = useState(false);
+  const [accountToEdit, setAccountToEdit] = useState<Account | null>(null);
+
   const handleOpenAddBudget = (month?: string) => {
     if (month) setBudgetModalMonth(month);
     setIsBudgetModalOpen(true);
+  };
+
+  const handleOpenAddBill = (bill?: Bill | null) => {
+    setBillToEdit(bill || null);
+    setIsBillModalOpen(true);
+  };
+
+  const handleOpenAddWallet = (acc?: Account | null) => {
+    setAccountToEdit(acc || null);
+    setIsAccountModalOpen(true);
   };
 
   // Load user session on boot
@@ -202,6 +220,8 @@ export default function App() {
             onOpenAddBudget={handleOpenAddBudget}
             onOpenAddSavings={() => setIsAddGoalModalOpen(true)}
             onOpenAddContribution={(goal) => setSelectedGoalForContrib(goal)}
+            onOpenAddBill={handleOpenAddBill}
+            onOpenAddWallet={handleOpenAddWallet}
             onEditTransaction={handleEditTransaction}
             dataVersion={dataVersion}
             onDataChanged={notifyDataChanged}
@@ -312,6 +332,32 @@ export default function App() {
           notifyDataChanged();
         }}
         goal={selectedGoalForContrib}
+        currency={currentUser.currency}
+      />
+
+      {/* 5. Bill Modal */}
+      <BillModal
+        isOpen={isBillModalOpen}
+        onClose={() => setIsBillModalOpen(false)}
+        onSuccess={() => {
+          loadAccounts();
+          notifyDataChanged();
+        }}
+        categories={categories}
+        accounts={accounts}
+        currency={currentUser.currency}
+        billToEdit={billToEdit}
+      />
+
+      {/* 6. Wallet / Account Modal */}
+      <AccountModal
+        isOpen={isAccountModalOpen}
+        onClose={() => setIsAccountModalOpen(false)}
+        onSuccess={() => {
+          loadAccounts();
+          notifyDataChanged();
+        }}
+        accountToEdit={accountToEdit}
         currency={currentUser.currency}
       />
     </div>

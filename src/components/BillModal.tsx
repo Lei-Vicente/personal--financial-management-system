@@ -33,6 +33,20 @@ export const BillModal: React.FC<BillModalProps> = ({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const [localAccounts, setLocalAccounts] = useState<Account[]>(accounts);
+
+  useEffect(() => {
+    if (accounts.length > 0) {
+      setLocalAccounts(accounts);
+    } else if (isOpen) {
+      apiFetch('/api/accounts')
+        .then(res => {
+          if (res.accounts) setLocalAccounts(res.accounts);
+        })
+        .catch(() => {});
+    }
+  }, [accounts, isOpen]);
+
   useEffect(() => {
     if (billToEdit) {
       setName(billToEdit.name);
@@ -54,14 +68,15 @@ export const BillModal: React.FC<BillModalProps> = ({
       } else if (categories.length > 0) {
         setCategoryId(categories[0].id);
       }
-      if (accounts.length > 0) {
-        const def = accounts.find(a => a.is_default === 1) || accounts[0];
+      const accs = localAccounts.length > 0 ? localAccounts : accounts;
+      if (accs.length > 0) {
+        const def = accs.find(a => a.is_default === 1) || accs[0];
         setAccountId(def.id);
       }
       setNotes('');
     }
     setError(null);
-  }, [billToEdit, isOpen, categories, accounts]);
+  }, [billToEdit, isOpen, categories, accounts, localAccounts]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -231,7 +246,7 @@ export const BillModal: React.FC<BillModalProps> = ({
               className="w-full py-2.5 px-3.5 bg-[#FFFFFF] border border-[#D9D9D4] rounded-xl text-sm text-[#111111] focus:outline-none focus:border-[#2563EB]"
             >
               <option value="">No specific account</option>
-              {accounts.map((acc) => (
+              {(localAccounts.length > 0 ? localAccounts : accounts).map((acc) => (
                 <option key={acc.id} value={acc.id}>
                   {acc.name} ({formatMoney(acc.current_balance ?? acc.balance ?? 0, currency)})
                 </option>

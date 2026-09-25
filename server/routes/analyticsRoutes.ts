@@ -27,15 +27,15 @@ export const handleDashboardAnalytics = async (req: AuthRequest, res: Response) 
 
     // Execute all dashboard queries concurrently for maximum performance
     const [allTimeRow, accountRows, curMonthRow, prevMonthRow, largestCatRow, categoryBreakdown] = await Promise.all([
-      db.prepare(`
+      Promise.resolve().then(() => db.prepare(`
         SELECT
           COALESCE(SUM(CASE WHEN type = 'INCOME' THEN amount ELSE 0 END), 0) as total_income,
           COALESCE(SUM(CASE WHEN type = 'EXPENSE' THEN amount ELSE 0 END), 0) as total_expense
         FROM transactions
         WHERE user_id = ?
-      `).get(userId).catch(() => ({ total_income: 0, total_expense: 0 })),
+      `).get(userId)).catch(() => ({ total_income: 0, total_expense: 0 })),
 
-      db.prepare(`
+      Promise.resolve().then(() => db.prepare(`
         SELECT a.balance,
           COALESCE(
             (SELECT SUM(
@@ -52,25 +52,25 @@ export const handleDashboardAnalytics = async (req: AuthRequest, res: Response) 
           ) as net_activity
         FROM accounts a
         WHERE a.user_id = ?
-      `).all(userId).catch(() => []),
+      `).all(userId)).catch(() => []),
 
-      db.prepare(`
+      Promise.resolve().then(() => db.prepare(`
         SELECT
           COALESCE(SUM(CASE WHEN type = 'INCOME' THEN amount ELSE 0 END), 0) as income,
           COALESCE(SUM(CASE WHEN type = 'EXPENSE' THEN amount ELSE 0 END), 0) as expense
         FROM transactions
         WHERE user_id = ? AND date >= ? AND date <= ?
-      `).get(userId, curStartDate, curEndDate).catch(() => ({ income: 0, expense: 0 })),
+      `).get(userId, curStartDate, curEndDate)).catch(() => ({ income: 0, expense: 0 })),
 
-      db.prepare(`
+      Promise.resolve().then(() => db.prepare(`
         SELECT
           COALESCE(SUM(CASE WHEN type = 'INCOME' THEN amount ELSE 0 END), 0) as income,
           COALESCE(SUM(CASE WHEN type = 'EXPENSE' THEN amount ELSE 0 END), 0) as expense
         FROM transactions
         WHERE user_id = ? AND date >= ? AND date <= ?
-      `).get(userId, prevStartDate, prevEndDate).catch(() => ({ income: 0, expense: 0 })),
+      `).get(userId, prevStartDate, prevEndDate)).catch(() => ({ income: 0, expense: 0 })),
 
-      db.prepare(`
+      Promise.resolve().then(() => db.prepare(`
         SELECT c.name, c.color, c.icon, SUM(t.amount) as total
         FROM transactions t
         JOIN categories c ON t.category_id = c.id
@@ -78,16 +78,16 @@ export const handleDashboardAnalytics = async (req: AuthRequest, res: Response) 
         GROUP BY c.id, c.name, c.color, c.icon
         ORDER BY SUM(t.amount) DESC
         LIMIT 1
-      `).get(userId, curStartDate, curEndDate).catch(() => null),
+      `).get(userId, curStartDate, curEndDate)).catch(() => null),
 
-      db.prepare(`
+      Promise.resolve().then(() => db.prepare(`
         SELECT c.id, c.name, c.color, c.icon, SUM(t.amount) as total, COUNT(t.id) as count
         FROM transactions t
         JOIN categories c ON t.category_id = c.id
         WHERE t.user_id = ? AND t.type = 'EXPENSE' AND t.date >= ? AND t.date <= ?
         GROUP BY c.id, c.name, c.color, c.icon
         ORDER BY SUM(t.amount) DESC
-      `).all(userId, curStartDate, curEndDate).catch(() => []),
+      `).all(userId, curStartDate, curEndDate)).catch(() => []),
     ]);
 
     // Unify all-time balance with user liquid accounts if accounts exist

@@ -23,6 +23,8 @@ interface DashboardViewProps {
   onOpenAddBudget: () => void;
   onOpenAddSavings: () => void;
   onOpenAddContribution: (goal: SavingsGoal) => void;
+  onOpenAddBill?: () => void;
+  onOpenAddWallet?: () => void;
   onEditTransaction: (trans: Transaction) => void;
   dataVersion?: number;
   onDataChanged?: () => void;
@@ -36,6 +38,8 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   onOpenAddBudget,
   onOpenAddSavings,
   onOpenAddContribution,
+  onOpenAddBill,
+  onOpenAddWallet,
   onEditTransaction,
   dataVersion,
   onDataChanged,
@@ -59,18 +63,21 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   const loadDashboardData = async () => {
     try {
       const [analyticsRes, transRes, budgetsRes, savingsRes, billsRes] = await Promise.all([
-        apiFetchFresh<DashboardAnalytics>('/api/analytics/dashboard'),
-        apiFetchFresh<any>('/api/transactions?limit=6'),
-        apiFetchFresh<any>('/api/budgets'),
-        apiFetchFresh<any>('/api/savings-goals'),
+        apiFetchFresh<DashboardAnalytics>('/api/analytics/dashboard').catch(err => {
+          console.error('Failed to load dashboard analytics:', err);
+          return null;
+        }),
+        apiFetchFresh<any>('/api/transactions?limit=6').catch(() => ({ transactions: [] })),
+        apiFetchFresh<any>('/api/budgets').catch(() => ({ budgets: [] })),
+        apiFetchFresh<any>('/api/savings-goals').catch(() => ({ goals: [] })),
         apiFetchFresh<any>('/api/bills?status=unpaid').catch(() => ({ bills: [] })),
       ]);
 
-      setAnalytics(analyticsRes);
-      setRecentTransactions(transRes.transactions || []);
-      setBudgets(budgetsRes.budgets || []);
-      setSavingsGoals(savingsRes.goals || []);
-      setUpcomingBills(billsRes.bills || []);
+      if (analyticsRes) setAnalytics(analyticsRes);
+      if (transRes?.transactions) setRecentTransactions(transRes.transactions);
+      if (budgetsRes?.budgets) setBudgets(budgetsRes.budgets);
+      if (savingsRes?.goals) setSavingsGoals(savingsRes.goals);
+      if (billsRes?.bills) setUpcomingBills(billsRes.bills);
     } catch (err) {
       console.error('Failed to load dashboard:', err);
     } finally {
@@ -127,25 +134,50 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         <div className="flex items-center gap-2 flex-wrap">
           <button
             onClick={() => onOpenAddTransaction('EXPENSE')}
-            className="px-3.5 py-2 bg-[#111111] hover:bg-[#B91C1C] text-white text-xs font-semibold rounded-xl transition-colors cursor-pointer shadow-xs flex items-center space-x-1.5"
+            className="px-3 py-1.5 bg-[#111111] hover:bg-[#B91C1C] text-white text-xs font-semibold rounded-xl transition-colors cursor-pointer shadow-xs flex items-center space-x-1.5"
           >
             <Plus className="w-3.5 h-3.5" />
             <span>Add Expense</span>
           </button>
           <button
             onClick={() => onOpenAddTransaction('INCOME')}
-            className="px-3.5 py-2 bg-[#FFFFFF] border border-[#D9D9D4] hover:border-[#15803D] hover:text-[#15803D] text-[#111111] text-xs font-semibold rounded-xl transition-colors cursor-pointer shadow-xs flex items-center space-x-1.5"
+            className="px-3 py-1.5 bg-[#FFFFFF] border border-[#D9D9D4] hover:border-[#15803D] hover:text-[#15803D] text-[#111111] text-xs font-semibold rounded-xl transition-colors cursor-pointer shadow-xs flex items-center space-x-1.5"
           >
             <Plus className="w-3.5 h-3.5" />
             <span>Add Income</span>
           </button>
           <button
             onClick={() => onOpenAddTransaction('TRANSFER')}
-            className="px-3.5 py-2 bg-[#FFFFFF] border border-[#D9D9D4] hover:border-[#2563EB] hover:text-[#2563EB] text-[#111111] text-xs font-semibold rounded-xl transition-colors cursor-pointer shadow-xs flex items-center space-x-1.5"
+            className="px-3 py-1.5 bg-[#FFFFFF] border border-[#D9D9D4] hover:border-[#2563EB] hover:text-[#2563EB] text-[#111111] text-xs font-semibold rounded-xl transition-colors cursor-pointer shadow-xs flex items-center space-x-1.5"
           >
             <ArrowRightLeft className="w-3.5 h-3.5" />
             <span>Transfer</span>
           </button>
+          <button
+            onClick={onOpenAddBudget}
+            className="px-3 py-1.5 bg-[#FFFFFF] border border-[#D9D9D4] hover:border-[#2563EB] hover:text-[#2563EB] text-[#111111] text-xs font-semibold rounded-xl transition-colors cursor-pointer shadow-xs flex items-center space-x-1.5"
+          >
+            <Plus className="w-3.5 h-3.5" />
+            <span>Add Budget</span>
+          </button>
+          {onOpenAddBill && (
+            <button
+              onClick={onOpenAddBill}
+              className="px-3 py-1.5 bg-[#FFFFFF] border border-[#D9D9D4] hover:border-[#D97706] hover:text-[#D97706] text-[#111111] text-xs font-semibold rounded-xl transition-colors cursor-pointer shadow-xs flex items-center space-x-1.5"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              <span>Add Bill</span>
+            </button>
+          )}
+          {onOpenAddWallet && (
+            <button
+              onClick={onOpenAddWallet}
+              className="px-3 py-1.5 bg-[#FFFFFF] border border-[#D9D9D4] hover:border-[#15803D] hover:text-[#15803D] text-[#111111] text-xs font-semibold rounded-xl transition-colors cursor-pointer shadow-xs flex items-center space-x-1.5"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              <span>Add Wallet</span>
+            </button>
+          )}
         </div>
       </div>
 
@@ -212,6 +244,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             user={user}
             dataVersion={dataVersion}
             onDataChanged={onDataChanged}
+            onOpenAddWallet={onOpenAddWallet}
           />
 
           {/* 3. Two-Column Dashboard Section: Budgets & Savings Goals */}
@@ -224,13 +257,22 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                 <PieChart className="w-4 h-4 text-[#2563EB]" />
                 <h2 className="text-base font-bold text-[#111111] tracking-tight">Category Budgets</h2>
               </div>
-              <button
-                onClick={() => onNavigate('budgets')}
-                className="text-xs text-[#2563EB] hover:underline font-semibold flex items-center space-x-1 cursor-pointer"
-              >
-                <span>View all</span>
-                <ArrowRight className="w-3.5 h-3.5" />
-              </button>
+              <div className="flex items-center space-x-2">
+                <button
+                  onClick={onOpenAddBudget}
+                  className="px-2.5 py-1 bg-[#111111] hover:bg-[#2563EB] text-white rounded-lg text-xs font-semibold flex items-center space-x-1 transition-colors cursor-pointer"
+                >
+                  <Plus className="w-3 h-3" />
+                  <span>Add Budget</span>
+                </button>
+                <button
+                  onClick={() => onNavigate('budgets')}
+                  className="text-xs text-[#2563EB] hover:underline font-semibold flex items-center space-x-1 cursor-pointer"
+                >
+                  <span>View all</span>
+                  <ArrowRight className="w-3.5 h-3.5" />
+                </button>
+              </div>
             </div>
 
             {budgets.length === 0 ? (
@@ -341,13 +383,24 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
               </span>
             )}
           </div>
-          <button
-            onClick={() => onNavigate('bills')}
-            className="text-xs text-[#2563EB] hover:underline font-semibold flex items-center space-x-1 cursor-pointer"
-          >
-            <span>{upcomingBills.length > 0 ? 'Manage bills' : 'View bills'}</span>
-            <ArrowRight className="w-3.5 h-3.5" />
-          </button>
+          <div className="flex items-center space-x-2">
+            {onOpenAddBill && (
+              <button
+                onClick={onOpenAddBill}
+                className="px-2.5 py-1 bg-[#111111] hover:bg-[#2563EB] text-white rounded-lg text-xs font-semibold flex items-center space-x-1 transition-colors cursor-pointer"
+              >
+                <Plus className="w-3 h-3" />
+                <span>Add Bill</span>
+              </button>
+            )}
+            <button
+              onClick={() => onNavigate('bills')}
+              className="text-xs text-[#2563EB] hover:underline font-semibold flex items-center space-x-1 cursor-pointer"
+            >
+              <span>{upcomingBills.length > 0 ? 'Manage bills' : 'View bills'}</span>
+              <ArrowRight className="w-3.5 h-3.5" />
+            </button>
+          </div>
         </div>
 
         {upcomingBills.length === 0 ? (
@@ -356,7 +409,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
               No pending bills or obligations due soon. Add your recurring subscriptions or utilities.
             </p>
             <button
-              onClick={() => onNavigate('bills')}
+              onClick={onOpenAddBill || (() => onNavigate('bills'))}
               className="px-3.5 py-1.5 bg-[#111111] hover:bg-[#2563EB] text-white rounded-xl text-xs font-semibold inline-flex items-center space-x-1.5 transition-colors cursor-pointer"
             >
               <Plus className="w-3.5 h-3.5" />

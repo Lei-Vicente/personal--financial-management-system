@@ -27,14 +27,20 @@ export const BudgetModal: React.FC<BudgetModalProps> = ({
   const [error, setError] = useState<string | null>(null);
 
   const expenseCategories = categories.filter((c) => c.type === 'EXPENSE');
+  const selectableCategories = expenseCategories.length > 0 ? expenseCategories : categories;
 
   useEffect(() => {
     if (isOpen) {
-      if (expenseCategories.length > 0) {
-        setCategoryId(expenseCategories[0].id);
+      const available = categories.filter((c) => c.type === 'EXPENSE');
+      const list = available.length > 0 ? available : categories;
+      if (list.length > 0) {
+        setCategoryId(list[0].id);
+      } else {
+        setCategoryId('');
       }
       setAmount('');
-      setMonth(defaultMonth);
+      const curMonth = `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}`;
+      setMonth(defaultMonth || curMonth);
       setError(null);
     }
   }, [isOpen, defaultMonth, categories]);
@@ -106,11 +112,15 @@ export const BudgetModal: React.FC<BudgetModalProps> = ({
               onChange={(e) => setCategoryId(e.target.value)}
               className="w-full py-2.5 px-3.5 bg-[#FFFFFF] border border-[#D9D9D4] rounded-xl text-sm text-[#111111] focus:outline-none focus:border-[#2563EB]"
             >
-              {expenseCategories.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.name}
-                </option>
-              ))}
+              {selectableCategories.length === 0 ? (
+                <option value="">No categories available</option>
+              ) : (
+                selectableCategories.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.name} {c.type === 'INCOME' ? '(Income)' : ''}
+                  </option>
+                ))
+              )}
             </select>
           </div>
 
