@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { X, Check, Trash2, Sparkles, Building2, Landmark, Smartphone, Banknote, Coins, Wallet, CreditCard, PiggyBank, Shield, Zap } from 'lucide-react';
 import { Account } from '../types.ts';
-import { apiFetch, CURRENCY_MAP, formatMoney } from '../utils.tsx';
+import { apiFetch, CURRENCY_MAP, formatMoney, getAccountIcon } from '../utils.tsx';
 
 interface AccountModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSuccess: () => void;
+  onSuccess: (savedAccount?: Account | null, action?: 'created' | 'updated' | 'deleted') => void;
   accountToEdit?: Account | null;
   currency: string;
 }
@@ -73,7 +73,7 @@ export const AccountModal: React.FC<AccountModalProps> = ({
       setColor(accountToEdit.color || '#2563EB');
       setIcon(accountToEdit.icon || 'Building2');
     } else {
-      // Default to Landbank or custom preset
+      // Default to empty name with 0 balance
       setName('');
       setType('BANK');
       setBalance('0');
@@ -92,6 +92,14 @@ export const AccountModal: React.FC<AccountModalProps> = ({
     setType(preset.type as any);
     setColor(preset.color);
     setIcon(preset.icon);
+    // Auto-focus and highlight balance input so user can easily enter starting balance
+    setTimeout(() => {
+      const balanceEl = document.getElementById('account-balance-input') as HTMLInputElement | null;
+      if (balanceEl) {
+        balanceEl.focus();
+        balanceEl.select();
+      }
+    }, 50);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -111,8 +119,11 @@ export const AccountModal: React.FC<AccountModalProps> = ({
 
     setLoading(true);
     try {
+      let savedAccount: Account | null = null;
+      let action: 'created' | 'updated' = 'created';
+
       if (accountToEdit) {
-        await apiFetch(`/api/accounts/${accountToEdit.id}`, {
+        const res = await apiFetch(`/api/accounts/${accountToEdit.id}`, {
           method: 'PATCH',
           body: JSON.stringify({
             name: name.trim(),
@@ -122,8 +133,18 @@ export const AccountModal: React.FC<AccountModalProps> = ({
             icon,
           }),
         });
+        savedAccount = res?.account || {
+          ...accountToEdit,
+          name: name.trim(),
+          type,
+          current_balance: numBalance,
+          balance: numBalance,
+          color,
+          icon,
+        };
+        action = 'updated';
       } else {
-        await apiFetch('/api/accounts', {
+        const res = await apiFetch('/api/accounts', {
           method: 'POST',
           body: JSON.stringify({
             name: name.trim(),
@@ -134,9 +155,11 @@ export const AccountModal: React.FC<AccountModalProps> = ({
             icon,
           }),
         });
+        savedAccount = res?.account || null;
+        action = 'created';
       }
 
-      onSuccess();
+      onSuccess(savedAccount, action);
       onClose();
     } catch (err: any) {
       console.error('Failed to save account:', err);
@@ -157,7 +180,7 @@ export const AccountModal: React.FC<AccountModalProps> = ({
       await apiFetch(`/api/accounts/${accountToEdit.id}`, {
         method: 'DELETE',
       });
-      onSuccess();
+      onSuccess(accountToEdit, 'deleted');
       onClose();
     } catch (err: any) {
       console.error('Failed to delete account:', err);
@@ -273,6 +296,10 @@ export const AccountModal: React.FC<AccountModalProps> = ({
                 required
                 className="w-full px-3 py-2 bg-[#FFFFFF] border border-[#D9D9D4] rounded-xl text-xs font-semibold text-[#111111] focus:outline-none focus:border-[#2563EB]"
               />
+              <p className="text-[11px] text-[#6B6B67] mt-1.5 flex items-center space-x-1">
+                <Sparkles className="w-3 h-3 text-[#2563EB] shrink-0" />
+                <span>Enter liquid amount on-hand or in account. Leave 0 if empty.</span>
+              </p>
             </div>
           </div>
 
@@ -330,6 +357,25 @@ export const AccountModal: React.FC<AccountModalProps> = ({
                   </button>
                 );
               })}
+            </div>
+          </div>
+
+          {/* Live Preview Card */}
+          <div className="p-3 bg-[#F5F5F3] border border-[#D9D9D4] rounded-xl flex items-center justify-between">
+            <div className="flex items-center space-x-2.5 min-w-0">
+              <div className="w-8 h-8 rounded-lg flex items-center justify-center text-white shrink-0 shadow-2xs" style={{ backgroundColor: color }}>
+                {getAccountIcon(icon, 'w-4 h-4 text-white')}
+              </div>
+              <div className="min-w-0">
+                <span className="text-xs font-bold text-[#111111] truncate block">{name.trim() || 'Wallet Name'}</span>
+                <span className="text-[10px] text-[#6B6B67] uppercase font-semibold">{type}</span>
+              </div>
+            </div>
+            <div className="text-right shrink-0">
+              <span className="text-[10px] text-[#6B6B67] block uppercase font-medium">Starting Liquid</span>
+              <span className="text-xs font-extrabold text-[#15803D] tabular-nums">
+                {formatMoney(Number(balance) || 0, currency)}
+              </span>
             </div>
           </div>
 

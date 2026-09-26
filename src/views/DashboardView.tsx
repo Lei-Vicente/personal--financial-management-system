@@ -10,7 +10,7 @@ import {
   CheckCircle2,
   AlertTriangle
 } from 'lucide-react';
-import { User, Category, Transaction, Budget, SavingsGoal, DashboardAnalytics, Bill } from '../types.ts';
+import { User, Category, Transaction, Budget, SavingsGoal, DashboardAnalytics, Bill, Account } from '../types.ts';
 import { apiFetch, apiFetchFresh, apiFetchCached, getCachedData, formatMoney, formatDate } from '../utils.tsx';
 import { BalanceCard, IncomeCard, ExpenseCard, BudgetCard, SavingsGoalCard, TransactionItem } from '../components/InteractiveCards.tsx';
 import { WalletSection } from '../components/WalletSection.tsx';
@@ -18,6 +18,8 @@ import { WalletSection } from '../components/WalletSection.tsx';
 interface DashboardViewProps {
   user: User;
   categories: Category[];
+  accounts?: Account[];
+  highlightedAccountId?: string | null;
   onNavigate: (tab: any, filter?: { type?: 'ALL' | 'INCOME' | 'EXPENSE' | 'TRANSFER'; categoryId?: string }) => void;
   onOpenAddTransaction: (type?: 'INCOME' | 'EXPENSE' | 'TRANSFER') => void;
   onOpenAddBudget: () => void;
@@ -33,6 +35,8 @@ interface DashboardViewProps {
 export const DashboardView: React.FC<DashboardViewProps> = ({
   user,
   categories,
+  accounts,
+  highlightedAccountId,
   onNavigate,
   onOpenAddTransaction,
   onOpenAddBudget,
@@ -245,6 +249,8 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             dataVersion={dataVersion}
             onDataChanged={onDataChanged}
             onOpenAddWallet={onOpenAddWallet}
+            accounts={accounts}
+            highlightedAccountId={highlightedAccountId}
           />
 
           {/* 3. Two-Column Dashboard Section: Budgets & Savings Goals */}

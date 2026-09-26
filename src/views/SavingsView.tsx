@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { PiggyBank, Plus, TrendingUp, Trash2, Calendar, Target } from 'lucide-react';
-import { User, SavingsGoal } from '../types.ts';
+import { User, SavingsGoal, Account } from '../types.ts';
 import { apiFetch, apiFetchFresh, apiFetchCached, getCachedData, formatMoney } from '../utils.tsx';
 import { SavingsGoalCard } from '../components/InteractiveCards.tsx';
 import { WalletSection } from '../components/WalletSection.tsx';
@@ -9,6 +9,9 @@ interface SavingsViewProps {
   user: User;
   onOpenAddGoal: () => void;
   onOpenAddContribution: (goal: SavingsGoal) => void;
+  onOpenAddWallet?: () => void;
+  accounts?: Account[];
+  highlightedAccountId?: string | null;
   dataVersion?: number;
   onDataChanged?: () => void;
 }
@@ -17,6 +20,9 @@ export const SavingsView: React.FC<SavingsViewProps> = ({
   user,
   onOpenAddGoal,
   onOpenAddContribution,
+  onOpenAddWallet,
+  accounts,
+  highlightedAccountId,
   dataVersion,
   onDataChanged,
 }) => {
@@ -84,6 +90,9 @@ export const SavingsView: React.FC<SavingsViewProps> = ({
         user={user}
         dataVersion={dataVersion}
         onDataChanged={onDataChanged}
+        onOpenAddWallet={onOpenAddWallet}
+        accounts={accounts}
+        highlightedAccountId={highlightedAccountId}
       />
 
       {/* Aggregate Overview Banner */}

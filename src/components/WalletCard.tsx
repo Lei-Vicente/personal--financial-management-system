@@ -9,6 +9,7 @@ interface WalletCardProps {
   totalLiquidSavings: number;
   onQuickUpdateBalance: (account: Account) => void;
   onEditAccount: (account: Account) => void;
+  isNew?: boolean;
 }
 
 export const WalletCard: React.FC<WalletCardProps> = ({
@@ -17,6 +18,7 @@ export const WalletCard: React.FC<WalletCardProps> = ({
   totalLiquidSavings,
   onQuickUpdateBalance,
   onEditAccount,
+  isNew = false,
 }) => {
   const [isHovered, setIsHovered] = useState(false);
   const currentBalance = Number(account.current_balance ?? account.balance ?? 0);
@@ -39,7 +41,11 @@ export const WalletCard: React.FC<WalletCardProps> = ({
     <div
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
-      className="bg-[#FFFFFF] border border-[#D9D9D4] hover:border-[#111111]/30 rounded-2xl p-5 flex flex-col justify-between transition-all duration-200 shadow-xs hover:shadow-sm relative overflow-hidden group min-h-[190px]"
+      className={`bg-[#FFFFFF] border rounded-2xl p-5 flex flex-col justify-between transition-all duration-300 relative overflow-hidden group min-h-[190px] ${
+        isNew
+          ? 'border-emerald-500 ring-2 ring-emerald-500 shadow-lg scale-[1.01]'
+          : 'border-[#D9D9D4] hover:border-[#111111]/30 shadow-xs hover:shadow-sm'
+      }`}
     >
       {/* Top subtle brand accent line */}
       <div 
@@ -58,9 +64,16 @@ export const WalletCard: React.FC<WalletCardProps> = ({
               {getAccountIcon(account.icon, 'w-5 h-5 text-white')}
             </div>
             <div className="min-w-0">
-              <h3 className="text-sm font-bold text-[#111111] truncate tracking-tight" title={account.name}>
-                {account.name}
-              </h3>
+              <div className="flex items-center space-x-1.5">
+                <h3 className="text-sm font-bold text-[#111111] truncate tracking-tight" title={account.name}>
+                  {account.name}
+                </h3>
+                {isNew && (
+                  <span className="text-[10px] font-extrabold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-full border border-emerald-300 animate-pulse shrink-0">
+                    Just Added
+                  </span>
+                )}
+              </div>
               <div className="flex items-center space-x-1.5 mt-0.5">
                 <span className="text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full bg-[#EBEBE7] text-[#6B6B67]">
                   {getTypeLabel(account.type)}

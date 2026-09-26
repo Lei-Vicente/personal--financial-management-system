@@ -21,6 +21,14 @@ export function createExpressApp() {
   app.use(express.urlencoded({ extended: true }));
   app.use(cookieParser());
 
+  // Disable HTTP caching for all dynamic API routes
+  app.use('/api', (req, res, next) => {
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+    res.setHeader('Pragma', 'no-cache');
+    res.setHeader('Expires', '0');
+    next();
+  });
+
   // Health check
   app.get('/api/health', (req, res) => {
     res.json({ status: 'ok', timestamp: new Date().toISOString() });

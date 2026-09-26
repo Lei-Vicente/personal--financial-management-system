@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
+import { CheckCircle2, AlertCircle, X } from 'lucide-react';
 import { User, Category, Transaction, Budget, SavingsGoal, Account, Bill } from './types.ts';
-import { apiFetch, setStoredToken, clearClientCache } from './utils.tsx';
+import { apiFetch, apiFetchFresh, setStoredToken, clearClientCache, formatMoney } from './utils.tsx';
 import { Navigation, NavTab } from './components/Navigation.tsx';
 import { AuthView } from './components/AuthView.tsx';
 import { OnboardingView } from './components/OnboardingView.tsx';
@@ -38,6 +39,21 @@ export default function App() {
   const [currentTab, setCurrentTab] = useState<NavTab>('dashboard');
   const [categories, setCategories] = useState<Category[]>([]);
   const [accounts, setAccounts] = useState<Account[]>([]);
+  const [highlightedAccountId, setHighlightedAccountId] = useState<string | null>(null);
+
+  // Global Toast Notification State
+  const [toast, setToast] = useState<{ id: string; message: string; type?: 'success' | 'error' | 'info' } | null>(null);
+
+  const showToast = (message: string, type: 'success' | 'error' | 'info' = 'success') => {
+    setToast({ id: Date.now().toString(), message, type });
+  };
+
+  useEffect(() => {
+    if (toast) {
+      const timer = setTimeout(() => setToast(null), 4500);
+      return () => clearTimeout(timer);
+    }
+  }, [toast]);
 
   // Cross-module data synchronization
   const [dataVersion, setDataVersion] = useState(0);
@@ -118,8 +134,10 @@ export default function App() {
 
   const loadAccounts = async () => {
     try {
-      const res = await apiFetch('/api/accounts');
-      setAccounts(res.accounts || []);
+      const res = await apiFetchFresh<any>('/api/accounts');
+      if (res?.accounts) {
+        setAccounts(res.accounts);
+      }
     } catch (err) {
       console.error('Failed to load accounts:', err);
     }
@@ -209,6 +227,8 @@ export default function App() {
           <DashboardView
             user={currentUser}
             categories={categories}
+            accounts={accounts}
+            highlightedAccountId={highlightedAccountId}
             onNavigate={(tab, filter) => {
               if (tab === 'transactions') {
                 handleNavigateToTransactions(filter);
@@ -254,8 +274,11 @@ export default function App() {
         {currentTab === 'savings' && (
           <SavingsView
             user={currentUser}
+            accounts={accounts}
+            highlightedAccountId={highlightedAccountId}
             onOpenAddGoal={() => setIsAddGoalModalOpen(true)}
             onOpenAddContribution={(goal) => setSelectedGoalForContrib(goal)}
+            onOpenAddWallet={handleOpenAddWallet}
             dataVersion={dataVersion}
             onDataChanged={notifyDataChanged}
           />
@@ -353,13 +376,54 @@ export default function App() {
       <AccountModal
         isOpen={isAccountModalOpen}
         onClose={() => setIsAccountModalOpen(false)}
-        onSuccess={() => {
+        onSuccess={(savedAccount, action) => {
+          if (savedAccount) {
+            if (action === 'created' || !action) {
+              setAccounts((prev) => {
+                const exists = prev.some((a) => a.id === savedAccount.id);
+                if (exists) return prev.map((a) => (a.id === savedAccount.id ? savedAccount : a));
+                return [...prev, savedAccount];
+              });
+              setHighlightedAccountId(savedAccount.id);
+              setTimeout(() => setHighlightedAccountId(null), 6000);
+              const bal = formatMoney(savedAccount.current_balance ?? savedAccount.balance ?? 0, currentUser.currency);
+              showToast(`Wallet "${savedAccount.name}" added successfully with starting balance ${bal}!`, 'success');
+            } else if (action === 'updated') {
+              setAccounts((prev) => prev.map((a) => (a.id === savedAccount.id ? savedAccount : a)));
+              setHighlightedAccountId(savedAccount.id);
+              setTimeout(() => setHighlightedAccountId(null), 5000);
+              showToast(`Wallet "${savedAccount.name}" updated successfully!`, 'success');
+            } else if (action === 'deleted') {
+              setAccounts((prev) => prev.filter((a) => a.id !== savedAccount.id));
+              showToast(`Wallet removed from your liquid portfolio.`, 'info');
+            }
+          }
+          clearClientCache('/api/accounts');
+          clearClientCache('/api/analytics');
           loadAccounts();
           notifyDataChanged();
         }}
         accountToEdit={accountToEdit}
         currency={currentUser.currency}
       />
+
+      {/* Global Toast Notification */}
+      {toast && (
+        <div className="fixed bottom-6 right-6 z-50 flex items-center space-x-3 px-4 py-3 bg-[#111111] text-white rounded-2xl shadow-2xl border border-white/10 text-xs font-semibold animate-fadeIn">
+          {toast.type === 'error' ? (
+            <AlertCircle className="w-4 h-4 text-red-400 shrink-0" />
+          ) : (
+            <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+          )}
+          <span>{toast.message}</span>
+          <button
+            onClick={() => setToast(null)}
+            className="p-1 text-white/60 hover:text-white rounded-lg transition-colors cursor-pointer"
+          >
+            <X className="w-3.5 h-3.5" />
+          </button>
+        </div>
+      )}
     </div>
   );
 }
