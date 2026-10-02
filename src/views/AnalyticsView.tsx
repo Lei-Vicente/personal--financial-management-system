@@ -13,16 +13,16 @@ import {
   ArrowDownRight
 } from 'lucide-react';
 import { User, Category, DashboardAnalytics } from '../types.ts';
-import { apiFetch, apiFetchFresh, apiFetchCached, getCachedData, formatMoney, getCategoryIcon, downloadCsvFile } from '../utils.tsx';
+import { apiFetch, apiFetchFresh, apiFetchCached, getCachedData, formatMoney, getCategoryIcon, downloadCsvFile , useDataVersion, notifyDataChanged } from '../utils.tsx';
 import { SpendingChart } from '../components/SpendingChart.tsx';
 
 interface AnalyticsViewProps {
   user: User;
   categories?: Category[];
-  dataVersion?: number;
 }
 
-export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ user, categories, dataVersion }) => {
+export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ user, categories }) => {
+  const dataVersion = useDataVersion();
   const [activeTab, setActiveTab] = useState<'analytics' | 'statement'>('analytics');
 
   // Analytics data
@@ -53,7 +53,7 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ user, categories, 
       }
     };
     loadAnalytics();
-  }, [user, dataVersion]);
+  }, [user]);
 
   useEffect(() => {
     const loadStatement = async () => {
@@ -68,7 +68,7 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ user, categories, 
       }
     };
     loadStatement();
-  }, [reportType, selectedMonth, selectedYear, dataVersion]);
+  }, [reportType, selectedMonth, selectedYear]);
 
   const handleDownloadCSV = async () => {
     try {
@@ -219,7 +219,9 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ user, categories, 
           <div className="bg-[#FFFFFF] border border-[#D9D9D4] rounded-2xl p-6 shadow-xs">
             <div className="flex items-center justify-between pb-4 border-b border-[#D9D9D4]/60 mb-5">
               <div className="flex items-center space-x-2">
-                <PieChart className="w-4 h-4 text-[#2563EB]" />
+                <div className="w-7 h-7 rounded-lg bg-[#111111] text-white flex items-center justify-center">
+                  <PieChart className="w-3.5 h-3.5" />
+                </div>
                 <h2 className="text-base font-bold text-[#111111] tracking-tight">Category Spending Distribution</h2>
               </div>
               <span className="text-xs text-[#6B6B67] font-medium">Current Month</span>

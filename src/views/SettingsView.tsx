@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { User, Shield, Key, Laptop, Globe, CheckCircle2, AlertCircle, LogOut } from 'lucide-react';
 import { User as UserType } from '../types.ts';
-import { apiFetch, CURRENCY_MAP } from '../utils.tsx';
+import { apiFetch, CURRENCY_MAP , useDataVersion, notifyDataChanged } from '../utils.tsx';
 
 interface SettingsViewProps {
   user: UserType;
@@ -10,6 +10,7 @@ interface SettingsViewProps {
 }
 
 export const SettingsView: React.FC<SettingsViewProps> = ({ user, onUpdateUser, onLogout }) => {
+  const dataVersion = useDataVersion();
   const [activeTab, setActiveTab] = useState<'profile' | 'security'>('profile');
 
   // Profile fields
@@ -278,10 +279,12 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ user, onUpdateUser, 
         <div className="space-y-6 max-w-2xl">
           {/* Change Password */}
           <div className="bg-[#FFFFFF] border border-[#D9D9D4] rounded-2xl p-6 sm:p-8 shadow-xs">
-            <h2 className="text-base font-bold text-[#111111] tracking-tight mb-1 flex items-center space-x-2">
-              <Key className="w-4 h-4 text-[#2563EB]" />
-              <span>Change Password</span>
-            </h2>
+            <div className="flex items-center space-x-2 mb-1">
+              <div className="w-7 h-7 rounded-lg bg-[#111111] text-white flex items-center justify-center">
+                <Key className="w-3.5 h-3.5" />
+              </div>
+              <h2 className="text-base font-bold text-[#111111] tracking-tight">Change Password</h2>
+            </div>
             <p className="text-xs text-[#6B6B67] mb-5">
               Ensure your account is protected with a secure password of at least 8 characters.
             </p>
@@ -347,10 +350,12 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ user, onUpdateUser, 
 
           {/* Active Sessions List */}
           <div className="bg-[#FFFFFF] border border-[#D9D9D4] rounded-2xl p-6 sm:p-8 shadow-xs">
-            <h2 className="text-base font-bold text-[#111111] tracking-tight mb-1 flex items-center space-x-2">
-              <Laptop className="w-4 h-4 text-[#2563EB]" />
-              <span>Active Browser Sessions</span>
-            </h2>
+            <div className="flex items-center space-x-2 mb-1">
+              <div className="w-7 h-7 rounded-lg bg-[#111111] text-white flex items-center justify-center">
+                <Laptop className="w-3.5 h-3.5" />
+              </div>
+              <h2 className="text-base font-bold text-[#111111] tracking-tight">Active Browser Sessions</h2>
+            </div>
             <p className="text-xs text-[#6B6B67] mb-5">
               Devices and network locations currently authenticated to this account.
             </p>

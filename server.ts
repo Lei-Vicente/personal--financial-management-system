@@ -1,3 +1,4 @@
+import 'dotenv/config';
 import express from 'express';
 import path from 'path';
 import cookieParser from 'cookie-parser';
@@ -11,6 +12,7 @@ import { analyticsRouter, handleDashboardAnalytics } from './server/routes/analy
 import { reportRouter } from './server/routes/reportsRoutes.ts';
 import { billRouter } from './server/routes/billRoutes.ts';
 import { recurringRouter } from './server/routes/recurringRoutes.ts';
+import { aiRouter } from './server/routes/aiRoutes.ts';
 import { requireAuth } from './server/auth.ts';
 
 export function createExpressApp() {
@@ -47,6 +49,7 @@ export function createExpressApp() {
   app.use('/api/accounts', accountRouter);
   app.use('/api/bills', billRouter);
   app.use('/api/recurring-transactions', recurringRouter);
+  app.use('/api/ai', aiRouter);
   app.use('/api/analytics', analyticsRouter);
   app.use('/api/reports', reportRouter);
 

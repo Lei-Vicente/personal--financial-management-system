@@ -1,27 +1,25 @@
 import React, { useState, useEffect } from 'react';
 import { Wallet, Plus, ArrowRight, ShieldCheck, Sparkles, Check, X } from 'lucide-react';
 import { User, Account } from '../types.ts';
-import { apiFetchFresh, apiFetchCached, getCachedData, formatMoney } from '../utils.tsx';
+import { apiFetchFresh, apiFetchCached, getCachedData, formatMoney, useDataVersion, notifyDataChanged } from '../utils.tsx';
 import { WalletCard } from './WalletCard.tsx';
 import { QuickBalanceModal } from './QuickBalanceModal.tsx';
 import { AccountModal } from './AccountModal.tsx';
 
 interface WalletSectionProps {
   user: User;
-  dataVersion?: number;
-  onDataChanged?: () => void;
   onOpenAddWallet?: () => void;
   accounts?: Account[];
   highlightedAccountId?: string | null;
+  isPrimaryHeader?: boolean;
 }
 
 export const WalletSection: React.FC<WalletSectionProps> = ({
   user,
-  dataVersion,
-  onDataChanged,
   onOpenAddWallet,
   accounts: propAccounts,
   highlightedAccountId,
+  isPrimaryHeader = false,
 }) => {
   const [accounts, setAccounts] = useState<Account[]>(() => {
     if (propAccounts && propAccounts.length > 0) return propAccounts;
@@ -67,7 +65,7 @@ export const WalletSection: React.FC<WalletSectionProps> = ({
 
   useEffect(() => {
     loadAccounts();
-  }, [user, dataVersion]);
+  }, [user]);
 
   const handleSuccess = (savedAccount?: Account | null, action?: 'created' | 'updated' | 'deleted') => {
     if (savedAccount) {
@@ -106,7 +104,7 @@ export const WalletSection: React.FC<WalletSectionProps> = ({
       }
     }
     loadAccounts();
-    onDataChanged?.();
+    notifyDataChanged();
   };
 
   const totalLiquidSavings = accounts.reduce((acc, a) => {
@@ -116,20 +114,31 @@ export const WalletSection: React.FC<WalletSectionProps> = ({
   return (
     <div className="space-y-4">
       {/* Section Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <div>
-          <div className="flex items-center space-x-2">
-            <div className="w-7 h-7 rounded-lg bg-[#111111] text-white flex items-center justify-center">
-              <Wallet className="w-3.5 h-3.5" />
-            </div>
-            <h2 className="text-lg font-bold text-[#111111] tracking-tight">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        {isPrimaryHeader ? (
+          <div>
+            <h1 className="text-2xl sm:text-3xl font-extrabold text-[#111111] tracking-tight">
               Wallets & Liquid Savings
-            </h2>
+            </h1>
+            <p className="text-sm text-[#6B6B67] mt-1">
+              Your real-time balances on Landbank, GoTyme, GCash, Cash on-hand, and other accounts
+            </p>
           </div>
-          <p className="text-xs text-[#6B6B67] mt-0.5">
-            Your real-time balances on Landbank, GoTyme, GCash, Cash on-hand, and other accounts
-          </p>
-        </div>
+        ) : (
+          <div>
+            <div className="flex items-center space-x-2">
+              <div className="w-7 h-7 rounded-lg bg-[#111111] text-white flex items-center justify-center">
+                <Wallet className="w-3.5 h-3.5" />
+              </div>
+              <h2 className="text-lg font-bold text-[#111111] tracking-tight">
+                Wallets & Liquid Savings
+              </h2>
+            </div>
+            <p className="text-xs text-[#6B6B67] mt-1.5">
+              Your real-time balances on Landbank, GoTyme, GCash, Cash on-hand, and other accounts
+            </p>
+          </div>
+        )}
 
         <div className="flex items-center space-x-2.5 self-start sm:self-auto">
           {/* Total Liquid Funds Banner */}

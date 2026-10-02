@@ -13,9 +13,12 @@ import {
   Wallet,
   ChevronUp,
   ChevronDown,
+  ChevronLeft,
+  ChevronRight,
   CalendarClock
 } from 'lucide-react';
 import { User } from '../types.ts';
+import { ThemeToggle } from './ThemeToggle.tsx';
 
 export type NavTab = 'dashboard' | 'transactions' | 'budgets' | 'savings' | 'bills' | 'analytics' | 'reports' | 'settings';
 
@@ -35,6 +38,7 @@ export const Navigation: React.FC<NavigationProps> = ({
 }) => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
+  const [isCollapsed, setIsCollapsed] = useState(false);
   const profileMenuRef = useRef<HTMLDivElement>(null);
 
   // Close profile menu on outside click or Escape
@@ -76,23 +80,34 @@ export const Navigation: React.FC<NavigationProps> = ({
   return (
     <>
       {/* Desktop Sidebar */}
-      <aside className="hidden lg:flex flex-col w-64 border-r border-[#D9D9D4] dark:border-[#333330] bg-[#FFFFFF] dark:bg-[#1A1A1A] h-screen sticky top-0 z-30 shrink-0 select-none">
+      <aside 
+        className={`hidden lg:flex flex-col border-r border-[#D9D9D4] dark:border-[#333330] bg-[#FFFFFF] dark:bg-[#1A1A1A] h-screen sticky top-0 z-30 shrink-0 select-none transition-[width] duration-300 ease-in-out group relative ${
+          isCollapsed ? 'w-20 hover:w-64' : 'w-64'
+        }`}
+      >
         {/* Brand Header */}
-        <div className="p-6 border-b border-[#D9D9D4]/60 dark:border-[#333330] flex items-center justify-between">
-          <div className="flex items-center space-x-3">
-            <div className="w-9 h-9 rounded-xl bg-[#111111] dark:bg-[#2563EB] flex items-center justify-center text-white shadow-sm">
+        <div className="py-6 px-5 h-[84px] border-b border-[#D9D9D4]/60 dark:border-[#333330] flex items-center justify-between overflow-hidden">
+          <div className="flex items-center space-x-3 shrink-0">
+            <div className="w-9 h-9 shrink-0 rounded-xl bg-[#111111] dark:bg-[#2563EB] flex items-center justify-center text-white shadow-sm">
               <Wallet className="w-5 h-5 text-white" />
             </div>
-            <div>
+            <div className={`transition-opacity duration-300 whitespace-nowrap ${isCollapsed ? 'opacity-0 group-hover:opacity-100' : 'opacity-100'}`}>
               <span className="font-semibold tracking-tight text-[#111111] dark:text-[#F5F5F3] text-base block">FinanceOS</span>
               <span className="text-[11px] font-medium text-[#6B6B67] dark:text-[#A1A19D] uppercase tracking-wider block">Personal Ledger</span>
             </div>
           </div>
+          <button 
+            onClick={() => setIsCollapsed(!isCollapsed)} 
+            className={`shrink-0 p-1.5 rounded-lg hover:bg-[#EBEBE7] dark:hover:bg-[#2A2A28] text-[#6B6B67] dark:text-[#A1A19D] transition-opacity duration-300 ${isCollapsed ? 'opacity-0 group-hover:opacity-100 hidden group-hover:block' : 'block'}`}
+            title="Toggle Sidebar"
+          >
+            <Menu className="w-4 h-4" />
+          </button>
         </div>
 
         {/* Navigation Links (Core Modules) */}
-        <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
-          <div className="px-3 pb-2 pt-1 text-[11px] font-semibold tracking-wider uppercase text-[#6B6B67] dark:text-[#A1A19D]">
+        <nav className="flex-1 px-3 py-4 space-y-1 overflow-x-hidden overflow-y-auto">
+          <div className={`px-3 pb-2 pt-1 text-[11px] font-semibold tracking-wider uppercase text-[#6B6B67] dark:text-[#A1A19D] whitespace-nowrap transition-opacity duration-300 ${isCollapsed ? 'opacity-0 group-hover:opacity-100' : 'opacity-100'}`}>
             Core Modules
           </div>
           {navItems.map((item) => {
@@ -107,9 +122,10 @@ export const Navigation: React.FC<NavigationProps> = ({
                     ? 'bg-[#111111] text-white shadow-sm'
                     : 'text-[#6B6B67] dark:text-[#A1A19D] hover:text-[#111111] dark:hover:text-[#F5F5F3] hover:bg-[#EBEBE7]/70 dark:hover:bg-[#2A2A28]'
                 }`}
+                title={isCollapsed ? item.label : undefined}
               >
-                <span className={isActive ? 'text-white' : 'text-[#6B6B67] dark:text-[#A1A19D]'}>{item.icon}</span>
-                <span>{item.label}</span>
+                <span className={`shrink-0 ${isActive ? 'text-white' : 'text-[#6B6B67] dark:text-[#A1A19D]'}`}>{item.icon}</span>
+                <span className={`whitespace-nowrap transition-opacity duration-300 ${isCollapsed ? 'opacity-0 group-hover:opacity-100' : 'opacity-100'}`}>{item.label}</span>
               </button>
             );
           })}
@@ -143,6 +159,8 @@ export const Navigation: React.FC<NavigationProps> = ({
                 </div>
               </div>
 
+               {/* Theme Toggle */}
+              <ThemeToggle />
               {/* Settings & Profile Nav Action */}
               <button
                 id="profile-menu-settings-btn"
@@ -191,16 +209,16 @@ export const Navigation: React.FC<NavigationProps> = ({
                 : 'border-[#D9D9D4] dark:border-[#333330] hover:bg-[#EBEBE7]/60 dark:hover:bg-[#252523]'
             }`}
           >
-            <div className="flex items-center space-x-2.5 min-w-0">
+            <div className="flex items-center space-x-2.5 min-w-0 shrink-0">
               <div className="w-8 h-8 rounded-full bg-[#EBEBE7] dark:bg-[#2A2A28] flex items-center justify-center font-bold text-xs text-[#111111] dark:text-[#F5F5F3] shrink-0 border border-[#D9D9D4] dark:border-[#444]">
                 {user.full_name.charAt(0).toUpperCase()}
               </div>
-              <div className="min-w-0 flex-1">
+              <div className={`min-w-0 flex-1 whitespace-nowrap transition-opacity duration-300 ${isCollapsed ? 'opacity-0 group-hover:opacity-100' : 'opacity-100'}`}>
                 <p className="text-xs font-semibold text-[#111111] dark:text-[#F5F5F3] truncate">{user.full_name}</p>
                 <p className="text-[11px] text-[#6B6B67] dark:text-[#A1A19D] truncate">Account & Settings</p>
               </div>
             </div>
-            <div className="ml-1 text-[#6B6B67] dark:text-[#A1A19D]">
+            <div className={`ml-1 text-[#6B6B67] dark:text-[#A1A19D] shrink-0 transition-opacity duration-300 ${isCollapsed ? 'opacity-0 group-hover:opacity-100 hidden group-hover:block' : 'block'}`}>
               {profileMenuOpen ? (
                 <ChevronDown className="w-4 h-4" />
               ) : (
@@ -287,6 +305,8 @@ export const Navigation: React.FC<NavigationProps> = ({
                 Account & Preferences
               </div>
 
+              {/* Theme Toggle */}
+              <ThemeToggle className="px-4 py-3 text-sm" />
               {/* Settings Action */}
               <button
                 id="mobile-drawer-settings-btn"

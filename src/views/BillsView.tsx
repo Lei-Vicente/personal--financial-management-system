@@ -14,25 +14,23 @@ import {
   Play
 } from 'lucide-react';
 import { User, Category, Account, Bill, RecurringTransaction } from '../types.ts';
-import { apiFetch, apiFetchFresh, apiFetchCached, getCachedData, formatMoney, formatDate, getCategoryIcon } from '../utils.tsx';
+import { apiFetch, apiFetchFresh, apiFetchCached, getCachedData, formatMoney, formatDate, getCategoryIcon , useDataVersion, notifyDataChanged } from '../utils.tsx';
 import { BillModal } from '../components/BillModal.tsx';
 import { RecurringModal } from '../components/RecurringModal.tsx';
+import { ConfirmDialog } from '../components/ConfirmDialog.tsx';
 
 interface BillsViewProps {
   user: User;
   categories: Category[];
   accounts: Account[];
-  dataVersion?: number;
-  onRefreshData?: () => void;
 }
 
 export const BillsView: React.FC<BillsViewProps> = ({
   user,
   categories,
   accounts,
-  dataVersion,
-  onRefreshData,
 }) => {
+  const dataVersion = useDataVersion();
   const [activeTab, setActiveTab] = useState<'bills' | 'recurring'>('bills');
   const [statusFilter, setStatusFilter] = useState<'all' | 'unpaid' | 'paid'>('all');
 
@@ -54,6 +52,22 @@ export const BillsView: React.FC<BillsViewProps> = ({
 
   const [processingRecurring, setProcessingRecurring] = useState(false);
   const [processMessage, setProcessMessage] = useState<string | null>(null);
+  const [errorFeedback, setErrorFeedback] = useState<string | null>(null);
+
+  // Confirm dialog state
+  const [confirmDialog, setConfirmDialog] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    confirmLabel?: string;
+    isDestructive?: boolean;
+    onConfirm: () => void;
+  }>({
+    isOpen: false,
+    title: '',
+    message: '',
+    onConfirm: () => {},
+  });
 
   const loadBills = async () => {
     try {
@@ -86,39 +100,70 @@ export const BillsView: React.FC<BillsViewProps> = ({
     loadRecurring();
   }, [dataVersion]);
 
-  const handlePayBill = async (billId: string) => {
-    try {
-      await apiFetch(`/api/bills/${billId}/pay`, {
-        method: 'POST',
-        body: JSON.stringify({ record_transaction: true }),
-      });
-      loadBills();
-      if (onRefreshData) onRefreshData();
-    } catch (err: any) {
-      alert(err.message || 'Failed to record bill payment.');
-    }
+  const handlePayBill = (bill: Bill) => {
+    setConfirmDialog({
+      isOpen: true,
+      title: 'Pay Bill',
+      message: `Mark "${bill.name}" (${formatMoney(bill.amount, user.currency)}) as paid and record corresponding expense?`,
+      confirmLabel: 'Confirm Payment',
+      isDestructive: false,
+      onConfirm: async () => {
+        setConfirmDialog(prev => ({ ...prev, isOpen: false }));
+        try {
+          await apiFetch(`/api/bills/${bill.id}/pay`, {
+            method: 'POST',
+            body: JSON.stringify({ record_transaction: true }),
+          });
+          loadBills();
+          notifyDataChanged();
+        } catch (err: any) {
+          setErrorFeedback(err.message || 'Failed to record bill payment.');
+          setTimeout(() => setErrorFeedback(null), 5000);
+        }
+      },
+    });
   };
 
-  const handleDeleteBill = async (billId: string) => {
-    if (!confirm('Are you sure you want to delete this bill?')) return;
-    try {
-      await apiFetch(`/api/bills/${billId}`, { method: 'DELETE' });
-      loadBills();
-      if (onRefreshData) onRefreshData();
-    } catch (err: any) {
-      alert(err.message || 'Failed to delete bill.');
-    }
+  const handleDeleteBill = (bill: Bill) => {
+    setConfirmDialog({
+      isOpen: true,
+      title: 'Delete Bill',
+      message: `Are you sure you want to delete the bill "${bill.name}"? This action cannot be undone.`,
+      confirmLabel: 'Delete Bill',
+      isDestructive: true,
+      onConfirm: async () => {
+        setConfirmDialog(prev => ({ ...prev, isOpen: false }));
+        try {
+          await apiFetch(`/api/bills/${bill.id}`, { method: 'DELETE' });
+          loadBills();
+          notifyDataChanged();
+        } catch (err: any) {
+          setErrorFeedback(err.message || 'Failed to delete bill.');
+          setTimeout(() => setErrorFeedback(null), 5000);
+        }
+      },
+    });
   };
 
-  const handleDeleteRecurring = async (recId: string) => {
-    if (!confirm('Are you sure you want to delete this recurring schedule?')) return;
-    try {
-      await apiFetch(`/api/recurring-transactions/${recId}`, { method: 'DELETE' });
-      loadRecurring();
-      if (onRefreshData) onRefreshData();
-    } catch (err: any) {
-      alert(err.message || 'Failed to delete recurring schedule.');
-    }
+  const handleDeleteRecurring = (rec: RecurringTransaction) => {
+    setConfirmDialog({
+      isOpen: true,
+      title: 'Delete Recurring Schedule',
+      message: `Are you sure you want to delete the schedule "${rec.description}"? Previously generated transactions will remain intact.`,
+      confirmLabel: 'Delete Schedule',
+      isDestructive: true,
+      onConfirm: async () => {
+        setConfirmDialog(prev => ({ ...prev, isOpen: false }));
+        try {
+          await apiFetch(`/api/recurring-transactions/${rec.id}`, { method: 'DELETE' });
+          loadRecurring();
+          notifyDataChanged();
+        } catch (err: any) {
+          setErrorFeedback(err.message || 'Failed to delete recurring schedule.');
+          setTimeout(() => setErrorFeedback(null), 5000);
+        }
+      },
+    });
   };
 
   const handleToggleRecurringActive = async (rec: RecurringTransaction) => {
@@ -129,7 +174,8 @@ export const BillsView: React.FC<BillsViewProps> = ({
       });
       loadRecurring();
     } catch (err: any) {
-      alert(err.message || 'Failed to toggle status.');
+      setErrorFeedback(err.message || 'Failed to toggle status.');
+      setTimeout(() => setErrorFeedback(null), 5000);
     }
   };
 
@@ -144,7 +190,7 @@ export const BillsView: React.FC<BillsViewProps> = ({
           : 'All recurring schedules are already up-to-date.'
       );
       loadRecurring();
-      if (onRefreshData) onRefreshData();
+      if (notifyDataChanged) notifyDataChanged();
     } catch (err: any) {
       setProcessMessage(err.message || 'Failed to process recurring transactions.');
     } finally {
@@ -158,11 +204,10 @@ export const BillsView: React.FC<BillsViewProps> = ({
       {/* Page Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-[#D9D9D4] pb-5">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-[#111111] flex items-center space-x-2">
-            <CalendarClock className="w-7 h-7 text-[#2563EB]" />
-            <span>Bills & Recurring Schedules</span>
+          <h1 className="text-2xl sm:text-3xl font-extrabold text-[#111111] tracking-tight">
+            Bills & Recurring Schedules
           </h1>
-          <p className="text-xs text-[#6B6B67] mt-1">
+          <p className="text-sm text-[#6B6B67] mt-1">
             Stay ahead of upcoming utilities, loans, subscriptions, and automated recurring income/expenses.
           </p>
         </div>
@@ -217,6 +262,21 @@ export const BillsView: React.FC<BillsViewProps> = ({
           )}
         </div>
       </div>
+
+      {/* Operational Feedback Banners */}
+      {processMessage && (
+        <div className="p-3.5 bg-blue-50 border border-blue-200 text-[#2563EB] rounded-2xl text-xs font-semibold flex items-center space-x-2 animate-fadeIn shadow-xs">
+          <Sparkles className="w-4 h-4 shrink-0 text-[#2563EB]" />
+          <span>{processMessage}</span>
+        </div>
+      )}
+
+      {errorFeedback && (
+        <div className="p-3.5 bg-red-50 border border-red-200 text-[#B91C1C] rounded-2xl text-xs font-semibold flex items-center space-x-2 animate-fadeIn shadow-xs">
+          <AlertTriangle className="w-4 h-4 shrink-0 text-[#B91C1C]" />
+          <span>{errorFeedback}</span>
+        </div>
+      )}
 
       {/* ======================================================== */}
       {/* TAB 1: BILLS & OBLIGATIONS                               */}
@@ -370,8 +430,8 @@ export const BillsView: React.FC<BillsViewProps> = ({
                     <div className="flex items-center gap-1.5 shrink-0">
                       {!bill.is_paid && (
                         <button
-                          onClick={() => handlePayBill(bill.id)}
-                          className="px-3 py-1.5 bg-[#15803D] hover:bg-[#166534] text-white rounded-xl text-xs font-semibold flex items-center space-x-1 transition-colors cursor-pointer shadow-xs shrink-0"
+                          onClick={() => handlePayBill(bill)}
+                          className="px-3 py-1.5 bg-[#15803D] hover:bg-[#166534] active:scale-[0.98] text-white rounded-xl text-xs font-semibold flex items-center space-x-1 transition-all cursor-pointer shadow-xs shrink-0"
                           title="Pay and record transaction"
                         >
                           <CheckCircle2 className="w-3.5 h-3.5" />
@@ -384,15 +444,15 @@ export const BillsView: React.FC<BillsViewProps> = ({
                           setBillToEdit(bill);
                           setBillModalOpen(true);
                         }}
-                        className="p-2 text-[#6B6B67] hover:text-[#111111] hover:bg-[#EBEBE7] rounded-xl transition-colors cursor-pointer shrink-0"
+                        className="p-2 text-[#6B6B67] hover:text-[#111111] hover:bg-[#EBEBE7] active:scale-[0.98] rounded-xl transition-all cursor-pointer shrink-0"
                         title="Edit Bill"
                       >
                         <Edit2 className="w-4 h-4" />
                       </button>
 
                       <button
-                        onClick={() => handleDeleteBill(bill.id)}
-                        className="p-2 text-[#6B6B67] hover:text-[#B91C1C] hover:bg-red-50 rounded-xl transition-colors cursor-pointer shrink-0"
+                        onClick={() => handleDeleteBill(bill)}
+                        className="p-2 text-[#6B6B67] hover:text-[#B91C1C] hover:bg-red-50 active:scale-[0.98] rounded-xl transition-all cursor-pointer shrink-0"
                         title="Delete Bill"
                       >
                         <Trash2 className="w-4 h-4" />
@@ -544,8 +604,8 @@ export const BillsView: React.FC<BillsViewProps> = ({
                       </button>
 
                       <button
-                        onClick={() => handleDeleteRecurring(rec.id)}
-                        className="p-2 text-[#6B6B67] hover:text-[#B91C1C] hover:bg-red-50 rounded-xl transition-colors cursor-pointer shrink-0"
+                        onClick={() => handleDeleteRecurring(rec)}
+                        className="p-2 text-[#6B6B67] hover:text-[#B91C1C] hover:bg-red-50 active:scale-[0.98] rounded-xl transition-all cursor-pointer shrink-0"
                         title="Delete Schedule"
                       >
                         <Trash2 className="w-4 h-4" />
@@ -565,7 +625,7 @@ export const BillsView: React.FC<BillsViewProps> = ({
         onClose={() => setBillModalOpen(false)}
         onSuccess={() => {
           loadBills();
-          if (onRefreshData) onRefreshData();
+          if (notifyDataChanged) notifyDataChanged();
         }}
         categories={categories}
         accounts={accounts}
@@ -579,12 +639,22 @@ export const BillsView: React.FC<BillsViewProps> = ({
         onClose={() => setRecurringModalOpen(false)}
         onSuccess={() => {
           loadRecurring();
-          if (onRefreshData) onRefreshData();
+          if (notifyDataChanged) notifyDataChanged();
         }}
         categories={categories}
         accounts={accounts}
         currency={user.currency}
         recurringToEdit={recurringToEdit}
+      />
+      {/* Confirm Action Dialog */}
+      <ConfirmDialog
+        isOpen={confirmDialog.isOpen}
+        title={confirmDialog.title}
+        message={confirmDialog.message}
+        confirmLabel={confirmDialog.confirmLabel}
+        isDestructive={confirmDialog.isDestructive}
+        onConfirm={confirmDialog.onConfirm}
+        onCancel={() => setConfirmDialog(prev => ({ ...prev, isOpen: false }))}
       />
     </div>
   );

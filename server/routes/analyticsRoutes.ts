@@ -1,5 +1,5 @@
 import { Router, Response } from 'express';
-import { db } from '../db.ts';
+import { db, SQL_NET_ACTIVITY_SUBQUERY } from '../db.ts';
 import { requireAuth, AuthRequest } from '../auth.ts';
 
 export const analyticsRouter = Router();
@@ -37,19 +37,7 @@ export const handleDashboardAnalytics = async (req: AuthRequest, res: Response) 
 
       Promise.resolve().then(() => db.prepare(`
         SELECT a.balance,
-          COALESCE(
-            (SELECT SUM(
-              CASE 
-                WHEN t.type = 'INCOME' THEN t.amount 
-                WHEN t.type = 'EXPENSE' THEN -t.amount
-                WHEN t.type = 'TRANSFER' AND t.account_id = a.id THEN -t.amount
-                WHEN t.type = 'TRANSFER' AND t.to_account_id = a.id THEN t.amount
-                ELSE 0
-              END
-            )
-             FROM transactions t
-             WHERE (t.account_id = a.id OR t.to_account_id = a.id) AND t.user_id = a.user_id), 0
-          ) as net_activity
+          ${SQL_NET_ACTIVITY_SUBQUERY} as net_activity
         FROM accounts a
         WHERE a.user_id = ?
       `).all(userId)).catch(() => []),

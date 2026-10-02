@@ -1,6 +1,6 @@
 import { Router, Response } from 'express';
 import crypto from 'node:crypto';
-import { db, seedDefaultAccount } from '../db.ts';
+import { db, seedDefaultAccount, SQL_NET_ACTIVITY_SUBQUERY } from '../db.ts';
 import { requireAuth, AuthRequest } from '../auth.ts';
 
 export const accountRouter = Router();
@@ -13,19 +13,7 @@ accountRouter.get('/', async (req: AuthRequest, res: Response) => {
 
     let rows = await db.prepare(`
       SELECT a.*,
-        COALESCE(
-          (SELECT SUM(
-            CASE 
-              WHEN t.type = 'INCOME' THEN t.amount 
-              WHEN t.type = 'EXPENSE' THEN -t.amount
-              WHEN t.type = 'TRANSFER' AND t.account_id = a.id THEN -t.amount
-              WHEN t.type = 'TRANSFER' AND t.to_account_id = a.id THEN t.amount
-              ELSE 0
-            END
-          )
-           FROM transactions t
-           WHERE (t.account_id = a.id OR t.to_account_id = a.id) AND t.user_id = a.user_id), 0
-        ) as net_activity
+        ${SQL_NET_ACTIVITY_SUBQUERY} as net_activity
       FROM accounts a
       WHERE a.user_id = ?
       ORDER BY a.is_default DESC, a.created_at ASC
@@ -36,19 +24,7 @@ accountRouter.get('/', async (req: AuthRequest, res: Response) => {
       await seedDefaultAccount(userId);
       rows = await db.prepare(`
         SELECT a.*,
-          COALESCE(
-            (SELECT SUM(
-              CASE 
-                WHEN t.type = 'INCOME' THEN t.amount 
-                WHEN t.type = 'EXPENSE' THEN -t.amount
-                WHEN t.type = 'TRANSFER' AND t.account_id = a.id THEN -t.amount
-                WHEN t.type = 'TRANSFER' AND t.to_account_id = a.id THEN t.amount
-                ELSE 0
-              END
-            )
-             FROM transactions t
-             WHERE (t.account_id = a.id OR t.to_account_id = a.id) AND t.user_id = a.user_id), 0
-          ) as net_activity
+          ${SQL_NET_ACTIVITY_SUBQUERY} as net_activity
         FROM accounts a
         WHERE a.user_id = ?
         ORDER BY a.is_default DESC, a.created_at ASC
@@ -70,19 +46,7 @@ accountRouter.get('/', async (req: AuthRequest, res: Response) => {
       }
       rows = await db.prepare(`
         SELECT a.*,
-          COALESCE(
-            (SELECT SUM(
-              CASE 
-                WHEN t.type = 'INCOME' THEN t.amount 
-                WHEN t.type = 'EXPENSE' THEN -t.amount
-                WHEN t.type = 'TRANSFER' AND t.account_id = a.id THEN -t.amount
-                WHEN t.type = 'TRANSFER' AND t.to_account_id = a.id THEN t.amount
-                ELSE 0
-              END
-            )
-             FROM transactions t
-             WHERE (t.account_id = a.id OR t.to_account_id = a.id) AND t.user_id = a.user_id), 0
-          ) as net_activity
+          ${SQL_NET_ACTIVITY_SUBQUERY} as net_activity
         FROM accounts a
         WHERE a.user_id = ?
         ORDER BY a.is_default DESC, a.created_at ASC
@@ -177,20 +141,10 @@ accountRouter.patch('/:id', async (req: AuthRequest, res: Response) => {
 
     // Fetch existing transaction activity for accurate current balance mapping
     const actRow = await db.prepare(`
-      SELECT COALESCE(
-        (SELECT SUM(
-          CASE 
-            WHEN t.type = 'INCOME' THEN t.amount 
-            WHEN t.type = 'EXPENSE' THEN -t.amount
-            WHEN t.type = 'TRANSFER' AND t.account_id = ? THEN -t.amount
-            WHEN t.type = 'TRANSFER' AND t.to_account_id = ? THEN t.amount
-            ELSE 0
-          END
-        )
-         FROM transactions t
-         WHERE (t.account_id = ? OR t.to_account_id = ?) AND t.user_id = ?), 0
-      ) as net_activity
-    `).get(accountId, accountId, accountId, accountId, userId) as any;
+      SELECT ${SQL_NET_ACTIVITY_SUBQUERY} as net_activity
+      FROM accounts a
+      WHERE a.id = ? AND a.user_id = ?
+    `).get(accountId, userId) as any;
     const netActivity = Number(actRow?.net_activity || 0);
 
     const newName = name !== undefined ? String(name).trim() : existing.name;

@@ -1,4 +1,6 @@
+import { useDataVersion, notifyDataChanged } from './utils.tsx';
 import React, { useState, useEffect } from 'react';
+import { motion, AnimatePresence } from 'motion/react';
 import { CheckCircle2, AlertCircle, X } from 'lucide-react';
 import { User, Category, Transaction, Budget, SavingsGoal, Account, Bill } from './types.ts';
 import { apiFetch, apiFetchFresh, setStoredToken, clearClientCache, formatMoney } from './utils.tsx';
@@ -16,6 +18,7 @@ import { TransactionModal } from './components/TransactionModal.tsx';
 import { BudgetModal } from './components/BudgetModal.tsx';
 import { AddGoalModal, AddContributionModal } from './components/SavingsModal.tsx';
 import { BillModal } from './components/BillModal.tsx';
+import { AICopilot } from './components/AICopilot.tsx';
 import { AccountModal } from './components/AccountModal.tsx';
 
 export default function App() {
@@ -32,6 +35,7 @@ export default function App() {
   }, []);
 
   // Authentication & User state
+  const dataVersion = useDataVersion();
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [authChecking, setAuthChecking] = useState(true);
 
@@ -55,11 +59,27 @@ export default function App() {
     }
   }, [toast]);
 
+
+  // Initialize theme from localStorage
+  useEffect(() => {
+    if (typeof document !== 'undefined') {
+      const savedTheme = localStorage.getItem('finance_theme');
+      if (savedTheme === 'dark') {
+        document.documentElement.classList.add('dark');
+      } else if (savedTheme === 'light') {
+        document.documentElement.classList.remove('dark');
+      } else {
+        if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+          document.documentElement.classList.add('dark');
+        } else {
+          document.documentElement.classList.remove('dark');
+        }
+      }
+    }
+  }, []);
+
   // Cross-module data synchronization
-  const [dataVersion, setDataVersion] = useState(0);
-  const notifyDataChanged = () => {
-    setDataVersion((v: number) => v + 1);
-  };
+  
 
   // Cross-module filter for Transactions view
   const [transactionFilter, setTransactionFilter] = useState<{
@@ -223,6 +243,14 @@ export default function App() {
 
       {/* Main Workspace Canvas */}
       <main className="flex-1 min-w-0 p-4 pb-24 sm:p-6 sm:pb-28 lg:p-8 xl:p-10 max-w-[1600px] mx-auto w-full">
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={currentTab}
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -12 }}
+            transition={{ duration: 0.25, ease: [0.23, 1, 0.32, 1] }}
+          >
         {currentTab === 'dashboard' && (
           <DashboardView
             user={currentUser}
@@ -243,8 +271,8 @@ export default function App() {
             onOpenAddBill={handleOpenAddBill}
             onOpenAddWallet={handleOpenAddWallet}
             onEditTransaction={handleEditTransaction}
-            dataVersion={dataVersion}
-            onDataChanged={notifyDataChanged}
+            
+            
           />
         )}
 
@@ -255,8 +283,8 @@ export default function App() {
             onOpenAddTransaction={handleOpenAddTransaction}
             onEditTransaction={handleEditTransaction}
             initialFilter={transactionFilter}
-            dataVersion={dataVersion}
-            onDataChanged={notifyDataChanged}
+            
+            
           />
         )}
 
@@ -266,8 +294,8 @@ export default function App() {
             categories={categories}
             onOpenAddBudget={handleOpenAddBudget}
             onNavigateToLedger={(catId) => handleNavigateToTransactions({ categoryId: catId || 'ALL', type: 'EXPENSE' })}
-            dataVersion={dataVersion}
-            onDataChanged={notifyDataChanged}
+            
+            
           />
         )}
 
@@ -279,8 +307,8 @@ export default function App() {
             onOpenAddGoal={() => setIsAddGoalModalOpen(true)}
             onOpenAddContribution={(goal) => setSelectedGoalForContrib(goal)}
             onOpenAddWallet={handleOpenAddWallet}
-            dataVersion={dataVersion}
-            onDataChanged={notifyDataChanged}
+            
+            
           />
         )}
 
@@ -289,13 +317,13 @@ export default function App() {
             user={currentUser}
             categories={categories}
             accounts={accounts}
-            dataVersion={dataVersion}
-            onRefreshData={notifyDataChanged}
+            
+            
           />
         )}
 
         {(currentTab === 'analytics' || currentTab === 'reports') && (
-          <AnalyticsView user={currentUser} categories={categories} dataVersion={dataVersion} />
+          <AnalyticsView user={currentUser} categories={categories}  />
         )}
 
         {currentTab === 'settings' && (
@@ -308,6 +336,8 @@ export default function App() {
             onLogout={handleLogout}
           />
         )}
+                </motion.div>
+        </AnimatePresence>
       </main>
 
       {/* MODALS */}
@@ -365,6 +395,7 @@ export default function App() {
         onSuccess={() => {
           loadAccounts();
           notifyDataChanged();
+          showToast(billToEdit ? 'Bill updated successfully!' : 'Bill added successfully!', 'success');
         }}
         categories={categories}
         accounts={accounts}
@@ -402,10 +433,14 @@ export default function App() {
           clearClientCache('/api/analytics');
           loadAccounts();
           notifyDataChanged();
+
         }}
         accountToEdit={accountToEdit}
         currency={currentUser.currency}
       />
+
+       {/* AI Assistant Widget */}
+      <AICopilot />
 
       {/* Global Toast Notification */}
       {toast && (
@@ -427,3 +462,4 @@ export default function App() {
     </div>
   );
 }
+

@@ -438,3 +438,21 @@ export async function seedDefaultAccount(userId: string) {
 export async function seedDefaultAccountAsync(userId: string) {
   return seedDefaultAccount(userId);
 }
+
+// Reusable SQL snippet for dynamically calculating an account's true balance based on transaction history.
+// Used across accountRoutes and analyticsRoutes to adhere to the DRY (Don't Repeat Yourself) principle.
+export const SQL_NET_ACTIVITY_SUBQUERY = `
+  COALESCE(
+    (SELECT SUM(
+      CASE 
+        WHEN t.type = 'INCOME' THEN t.amount 
+        WHEN t.type = 'EXPENSE' THEN -t.amount
+        WHEN t.type = 'TRANSFER' AND t.account_id = a.id THEN -t.amount
+        WHEN t.type = 'TRANSFER' AND t.to_account_id = a.id THEN t.amount
+        ELSE 0
+      END
+    )
+     FROM transactions t
+     WHERE (t.account_id = a.id OR t.to_account_id = a.id) AND t.user_id = a.user_id), 0
+  )
+`;

@@ -279,3 +279,21 @@ export async function downloadCsvFile(endpoint: string, defaultFilename = 'trans
   a.remove();
   window.URL.revokeObjectURL(url);
 }
+
+
+// Event-based data invalidation hook
+export function notifyDataChanged() {
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new Event('finance_data_changed'));
+  }
+}
+
+export function useDataVersion() {
+  const [version, setVersion] = React.useState(0);
+  React.useEffect(() => {
+    const handler = () => setVersion((v) => v + 1);
+    window.addEventListener('finance_data_changed', handler);
+    return () => window.removeEventListener('finance_data_changed', handler);
+  }, []);
+  return version;
+}

@@ -1,16 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { PieChart, Plus, AlertCircle, Calendar, Trash2, CheckCircle2 } from 'lucide-react';
 import { User, Category, Budget } from '../types.ts';
-import { apiFetch, apiFetchFresh, getCachedData, formatMoney } from '../utils.tsx';
+import { apiFetch, apiFetchFresh, getCachedData, formatMoney , useDataVersion, notifyDataChanged } from '../utils.tsx';
 import { BudgetCard } from '../components/InteractiveCards.tsx';
+import { ConfirmDialog } from '../components/ConfirmDialog.tsx';
 
 interface BudgetsViewProps {
   user: User;
   categories: Category[];
   onOpenAddBudget: (month?: string) => void;
   onNavigateToLedger: (categoryId?: string) => void;
-  dataVersion?: number;
-  onDataChanged?: () => void;
 }
 
 export const BudgetsView: React.FC<BudgetsViewProps> = ({
@@ -18,8 +17,6 @@ export const BudgetsView: React.FC<BudgetsViewProps> = ({
   categories,
   onOpenAddBudget,
   onNavigateToLedger,
-  dataVersion,
-  onDataChanged,
 }) => {
   const [currentMonth, setCurrentMonth] = useState(() => {
     const now = new Date();
@@ -42,20 +39,44 @@ export const BudgetsView: React.FC<BudgetsViewProps> = ({
 
   useEffect(() => {
     loadBudgets();
-  }, [currentMonth, dataVersion]);
+  }, [currentMonth]);
 
-  const handleDeleteBudget = async (id: string, name: string) => {
-    if (!window.confirm(`Delete monthly budget for ${name}?`)) return;
-    // Optimistic delete
-    setBudgets(prev => prev.filter(b => b.id !== id));
-    try {
-      await apiFetch(`/api/budgets/${id}`, { method: 'DELETE' });
-      loadBudgets();
-      onDataChanged?.();
-    } catch (err) {
-      console.error('Failed to delete budget:', err);
-      loadBudgets();
-    }
+  // Confirm dialog state
+  const [confirmDialog, setConfirmDialog] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    confirmLabel?: string;
+    isDestructive?: boolean;
+    onConfirm: () => void;
+  }>({
+    isOpen: false,
+    title: '',
+    message: '',
+    onConfirm: () => {},
+  });
+
+  const handleDeleteBudget = (id: string, name: string) => {
+    setConfirmDialog({
+      isOpen: true,
+      title: 'Delete Monthly Budget',
+      message: `Are you sure you want to remove the ${name} budget for this month? Existing recorded transactions will not be affected.`,
+      confirmLabel: 'Delete Budget',
+      isDestructive: true,
+      onConfirm: async () => {
+        setConfirmDialog(prev => ({ ...prev, isOpen: false }));
+        // Optimistic delete
+        setBudgets(prev => prev.filter(b => b.id !== id));
+        try {
+          await apiFetch(`/api/budgets/${id}`, { method: 'DELETE' });
+          loadBudgets();
+          notifyDataChanged();
+        } catch (err) {
+          console.error('Failed to delete budget:', err);
+          loadBudgets();
+        }
+      },
+    });
   };
 
   // Aggregated totals
@@ -178,16 +199,22 @@ export const BudgetsView: React.FC<BudgetsViewProps> = ({
             ))}
           </div>
         ) : budgets.length === 0 ? (
-          <div className="bg-[#FFFFFF] border border-[#D9D9D4] rounded-2xl p-12 text-center space-y-3">
-            <p className="text-sm font-semibold text-[#111111]">No category budgets set for this month.</p>
-            <p className="text-xs text-[#6B6B67]">
-              Define spending limits for food, transport, bills, and entertainment to track budget adherence.
-            </p>
+          <div className="bg-[#FFFFFF] border border-[#D9D9D4] rounded-2xl p-12 text-center space-y-4 shadow-xs">
+            <div className="w-12 h-12 rounded-2xl bg-[#EBEBE7] flex items-center justify-center mx-auto text-[#6B6B67]">
+              <PieChart className="w-6 h-6" />
+            </div>
+            <div>
+              <p className="text-sm font-bold text-[#111111]">No category budgets set for this month</p>
+              <p className="text-xs text-[#6B6B67] mt-1 max-w-sm mx-auto leading-relaxed">
+                Define spending limits for food, transport, bills, and utilities to ensure disciplined pacing and avoid month-end deficits.
+              </p>
+            </div>
             <button
               onClick={() => onOpenAddBudget(currentMonth)}
-              className="px-4 py-2 bg-[#111111] hover:bg-[#2563EB] text-white rounded-xl text-xs font-semibold cursor-pointer"
+              className="px-4 py-2 bg-[#111111] hover:bg-[#2563EB] active:scale-[0.98] text-white rounded-xl text-xs font-semibold inline-flex items-center space-x-1.5 transition-all cursor-pointer shadow-xs"
             >
-              Set First Budget
+              <Plus className="w-3.5 h-3.5" />
+              <span>Set First Budget</span>
             </button>
           </div>
         ) : (
@@ -204,6 +231,17 @@ export const BudgetsView: React.FC<BudgetsViewProps> = ({
           </div>
         )}
       </div>
+
+      {/* Confirm Action Dialog */}
+      <ConfirmDialog
+        isOpen={confirmDialog.isOpen}
+        title={confirmDialog.title}
+        message={confirmDialog.message}
+        confirmLabel={confirmDialog.confirmLabel}
+        isDestructive={confirmDialog.isDestructive}
+        onConfirm={confirmDialog.onConfirm}
+        onCancel={() => setConfirmDialog(prev => ({ ...prev, isOpen: false }))}
+      />
     </div>
   );
 };

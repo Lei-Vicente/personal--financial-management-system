@@ -27,6 +27,18 @@ export const AddGoalModal: React.FC<AddGoalModalProps> = ({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Handle Escape key
+  React.useEffect(() => {
+    if (!isOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        onClose();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, onClose]);
+
   if (!isOpen) return null;
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -66,8 +78,16 @@ export const AddGoalModal: React.FC<AddGoalModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4 animate-fadeIn">
-      <div className="bg-[#FFFFFF] border border-[#D9D9D4] rounded-2xl w-full max-w-md shadow-xl overflow-hidden max-h-[90vh] flex flex-col">
+    <div
+      className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4 animate-fadeIn"
+      role="dialog"
+      aria-modal="true"
+      onClick={onClose}
+    >
+      <div
+        className="bg-[#FFFFFF] border border-[#D9D9D4] rounded-2xl w-full max-w-md shadow-xl overflow-hidden max-h-[90vh] flex flex-col"
+        onClick={(e) => e.stopPropagation()}
+      >
         <div className="px-6 py-4 border-b border-[#D9D9D4] flex items-center justify-between shrink-0">
           <h2 className="text-base font-bold text-[#111111] tracking-tight">Create Savings Goal</h2>
           <button onClick={onClose} className="p-1.5 text-[#6B6B67] hover:text-[#111111] rounded-lg hover:bg-[#EBEBE7] transition-colors cursor-pointer">
@@ -161,7 +181,7 @@ export const AddGoalModal: React.FC<AddGoalModalProps> = ({
             <button
               type="button"
               onClick={onClose}
-              className="py-2 px-4 text-xs font-semibold text-[#6B6B67] hover:text-[#111111] hover:bg-[#EBEBE7] rounded-xl transition-colors cursor-pointer"
+              className="py-2 px-4 text-xs font-semibold text-[#6B6B67] hover:text-[#111111] hover:bg-[#EBEBE7] rounded-xl transition-colors cursor-pointer active:scale-[0.98]"
             >
               Cancel
             </button>
@@ -169,7 +189,7 @@ export const AddGoalModal: React.FC<AddGoalModalProps> = ({
               id="submit-goal-btn"
               type="submit"
               disabled={loading}
-              className="py-2.5 px-5 bg-[#111111] hover:bg-[#2563EB] text-white text-xs font-semibold rounded-xl shadow-xs transition-all cursor-pointer disabled:opacity-60"
+              className="py-2.5 px-5 bg-[#111111] hover:bg-[#2563EB] text-white text-xs font-semibold rounded-xl shadow-xs transition-all cursor-pointer disabled:opacity-60 active:scale-[0.98]"
             >
               {loading ? 'Creating...' : 'Create Goal'}
             </button>
@@ -204,6 +224,18 @@ export const AddContributionModal: React.FC<AddContributionModalProps> = ({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Handle Escape key
+  React.useEffect(() => {
+    if (!isOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        onClose();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, onClose]);
+
   if (!isOpen || !goal) return null;
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -236,8 +268,16 @@ export const AddContributionModal: React.FC<AddContributionModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4 animate-fadeIn">
-      <div className="bg-[#FFFFFF] border border-[#D9D9D4] rounded-2xl w-full max-w-md shadow-xl overflow-hidden max-h-[90vh] flex flex-col">
+    <div
+      className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4 animate-fadeIn"
+      role="dialog"
+      aria-modal="true"
+      onClick={onClose}
+    >
+      <div
+        className="bg-[#FFFFFF] border border-[#D9D9D4] rounded-2xl w-full max-w-md shadow-xl overflow-hidden max-h-[90vh] flex flex-col"
+        onClick={(e) => e.stopPropagation()}
+      >
         <div className="px-6 py-4 border-b border-[#D9D9D4] flex items-center justify-between shrink-0">
           <div>
             <h2 className="text-base font-bold text-[#111111] tracking-tight">Deposit into Savings</h2>
@@ -304,7 +344,7 @@ export const AddContributionModal: React.FC<AddContributionModalProps> = ({
             <button
               type="button"
               onClick={onClose}
-              className="py-2 px-4 text-xs font-semibold text-[#6B6B67] hover:text-[#111111] hover:bg-[#EBEBE7] rounded-xl transition-colors cursor-pointer"
+              className="py-2 px-4 text-xs font-semibold text-[#6B6B67] hover:text-[#111111] hover:bg-[#EBEBE7] rounded-xl transition-colors cursor-pointer active:scale-[0.98]"
             >
               Cancel
             </button>
@@ -312,7 +352,7 @@ export const AddContributionModal: React.FC<AddContributionModalProps> = ({
               id="submit-contrib-btn"
               type="submit"
               disabled={loading}
-              className="py-2.5 px-5 bg-[#15803D] hover:bg-[#111111] text-white text-xs font-semibold rounded-xl shadow-xs transition-all cursor-pointer disabled:opacity-60"
+              className="py-2.5 px-5 bg-[#15803D] hover:bg-[#111111] text-white text-xs font-semibold rounded-xl shadow-xs transition-all cursor-pointer disabled:opacity-60 active:scale-[0.98]"
             >
               {loading ? 'Depositing...' : 'Confirm Deposit'}
             </button>

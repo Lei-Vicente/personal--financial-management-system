@@ -2,6 +2,7 @@ import { Router, Response } from 'express';
 import crypto from 'node:crypto';
 import { db } from '../db.ts';
 import { requireAuth, AuthRequest } from '../auth.ts';
+import { validate, ValidationError } from '../utils/validate.ts';
 
 export const transactionRouter = Router();
 transactionRouter.use(requireAuth);
@@ -181,22 +182,10 @@ transactionRouter.post('/', async (req: AuthRequest, res: Response) => {
       notes = '',
     } = req.body;
 
-    if (!type || (type !== 'INCOME' && type !== 'EXPENSE' && type !== 'TRANSFER')) {
-      return res.status(400).json({ error: 'Invalid transaction type. Must be INCOME, EXPENSE, or TRANSFER.' });
-    }
-
-    const numAmount = Number(amount);
-    if (isNaN(numAmount) || numAmount <= 0) {
-      return res.status(400).json({ error: 'Please enter a valid amount greater than 0.' });
-    }
-
-    if (!description || typeof description !== 'string' || description.trim().length === 0) {
-      return res.status(400).json({ error: 'Please enter a description for this transaction.' });
-    }
-
-    if (!date || !/^\d{4}-\d{2}-\d{2}$/.test(date)) {
-      return res.status(400).json({ error: 'Please provide a valid date in YYYY-MM-DD format.' });
-    }
+    const valid_type = validate.enum(type, ['INCOME', 'EXPENSE', 'TRANSFER'], 'Invalid transaction type. Must be INCOME, EXPENSE, or TRANSFER.');
+    const numAmount = validate.amount(amount);
+    const valid_desc = validate.string(description, 'Please enter a description for this transaction.');
+    const valid_date = validate.date(date);
 
     let resolvedCatId: string | null = null;
     let catName = 'Transfer';
@@ -274,10 +263,10 @@ transactionRouter.post('/', async (req: AuthRequest, res: Response) => {
       accId,
       toAccId,
       resolvedCatId,
-      type,
+      valid_type,
       numAmount,
-      date,
-      description.trim(),
+      valid_date,
+      valid_desc,
       payment_method || (type === 'TRANSFER' ? 'Transfer' : 'Cash'),
       notes ? String(notes).trim() : '',
       now,
@@ -310,6 +299,9 @@ transactionRouter.post('/', async (req: AuthRequest, res: Response) => {
       transaction: inserted,
     });
   } catch (error: any) {
+    if (error.name === 'ValidationError') {
+      return res.status(400).json({ error: error.message });
+    }
     console.error('Create transaction error:', error);
     return res.status(500).json({ error: 'Failed to create transaction.' });
   }
@@ -329,20 +321,9 @@ transactionRouter.patch('/:id', async (req: AuthRequest, res: Response) => {
 
     const { account_id, to_account_id, category_id, type, amount, date, description, payment_method, notes } = req.body;
 
-    const newType = type !== undefined ? type : existing.type;
-    if (newType !== 'INCOME' && newType !== 'EXPENSE' && newType !== 'TRANSFER') {
-      return res.status(400).json({ error: 'Invalid transaction type.' });
-    }
-
-    const newAmount = amount !== undefined ? Number(amount) : existing.amount;
-    if (isNaN(newAmount) || newAmount <= 0) {
-      return res.status(400).json({ error: 'Amount must be greater than zero.' });
-    }
-
-    const newDate = date !== undefined ? date : existing.date;
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(newDate)) {
-      return res.status(400).json({ error: 'Invalid date format (YYYY-MM-DD).' });
-    }
+    const newType = type !== undefined ? validate.enum(type, ['INCOME', 'EXPENSE', 'TRANSFER'], 'Invalid transaction type.') : existing.type;
+    const newAmount = amount !== undefined ? validate.amount(amount) : existing.amount;
+    const newDate = date !== undefined ? validate.date(date) : existing.date;
 
     let newCategoryId = existing.category_id;
     if (category_id !== undefined) {
@@ -387,7 +368,7 @@ transactionRouter.patch('/:id', async (req: AuthRequest, res: Response) => {
       return res.status(400).json({ error: 'Transfer requires distinct source and destination accounts.' });
     }
 
-    const newDesc = description !== undefined ? String(description).trim() : existing.description;
+    const newDesc = description !== undefined ? validate.string(description, 'Please enter a description for this transaction.') : existing.description;
     const newPayment = payment_method !== undefined ? String(payment_method) : existing.payment_method;
     const newNotes = notes !== undefined ? String(notes).trim() : existing.notes;
     const now = new Date().toISOString();
@@ -418,6 +399,9 @@ transactionRouter.patch('/:id', async (req: AuthRequest, res: Response) => {
       transaction: updated,
     });
   } catch (error: any) {
+    if (error.name === 'ValidationError') {
+      return res.status(400).json({ error: error.message });
+    }
     console.error('Update transaction error:', error);
     return res.status(500).json({ error: 'Failed to update transaction.' });
   }

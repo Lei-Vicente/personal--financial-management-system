@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { X, Check, Trash2, Sparkles, Building2, Landmark, Smartphone, Banknote, Coins, Wallet, CreditCard, PiggyBank, Shield, Zap } from 'lucide-react';
 import { Account } from '../types.ts';
 import { apiFetch, CURRENCY_MAP, formatMoney, getAccountIcon } from '../utils.tsx';
+import { ConfirmDialog } from './ConfirmDialog.tsx';
 
 interface AccountModalProps {
   isOpen: boolean;
@@ -82,6 +83,20 @@ export const AccountModal: React.FC<AccountModalProps> = ({
     }
     setError(null);
   }, [accountToEdit, isOpen]);
+
+  const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
+
+  // Handle Escape key
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && !confirmDeleteOpen) {
+        onClose();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, onClose, confirmDeleteOpen]);
 
   if (!isOpen) return null;
 
@@ -169,12 +184,14 @@ export const AccountModal: React.FC<AccountModalProps> = ({
     }
   };
 
-  const handleDelete = async () => {
+  const handleDelete = () => {
     if (!accountToEdit) return;
-    if (!window.confirm(`Delete wallet "${accountToEdit.name}"? Transactions linked to this account will remain in your ledger.`)) {
-      return;
-    }
+    setConfirmDeleteOpen(true);
+  };
 
+  const executeDelete = async () => {
+    if (!accountToEdit) return;
+    setConfirmDeleteOpen(false);
     setLoading(true);
     try {
       await apiFetch(`/api/accounts/${accountToEdit.id}`, {
@@ -191,8 +208,16 @@ export const AccountModal: React.FC<AccountModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#111111]/50 backdrop-blur-xs animate-fadeIn">
-      <div className="bg-[#FFFFFF] border border-[#D9D9D4] rounded-2xl w-full max-w-lg shadow-xl overflow-hidden animate-scaleUp max-h-[90vh] flex flex-col">
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#111111]/50 backdrop-blur-xs animate-fadeIn"
+      role="dialog"
+      aria-modal="true"
+      onClick={onClose}
+    >
+      <div
+        className="bg-[#FFFFFF] border border-[#D9D9D4] rounded-2xl w-full max-w-lg shadow-xl overflow-hidden animate-scaleUp max-h-[90vh] flex flex-col"
+        onClick={(e) => e.stopPropagation()}
+      >
         {/* Header */}
         <div className="p-5 border-b border-[#D9D9D4] flex items-center justify-between shrink-0">
           <div>
@@ -397,7 +422,7 @@ export const AccountModal: React.FC<AccountModalProps> = ({
               <button
                 type="button"
                 onClick={onClose}
-                className="px-4 py-2 bg-[#FFFFFF] border border-[#D9D9D4] hover:bg-[#EBEBE7] text-[#111111] rounded-xl text-xs font-semibold transition-colors cursor-pointer"
+                className="px-4 py-2 bg-[#FFFFFF] border border-[#D9D9D4] hover:bg-[#EBEBE7] text-[#111111] rounded-xl text-xs font-semibold transition-colors cursor-pointer active:scale-[0.98]"
               >
                 Cancel
               </button>
@@ -405,7 +430,7 @@ export const AccountModal: React.FC<AccountModalProps> = ({
                 id="save-account-btn"
                 type="submit"
                 disabled={loading}
-                className="px-5 py-2 bg-[#111111] hover:bg-[#2563EB] text-white rounded-xl text-xs font-semibold flex items-center space-x-1.5 transition-colors cursor-pointer shadow-xs disabled:opacity-50"
+                className="px-5 py-2 bg-[#111111] hover:bg-[#2563EB] text-white rounded-xl text-xs font-semibold flex items-center space-x-1.5 transition-all cursor-pointer shadow-xs disabled:opacity-50 active:scale-[0.98]"
               >
                 <Check className="w-3.5 h-3.5" />
                 <span>{loading ? 'Saving...' : (accountToEdit ? 'Save Changes' : 'Create Account')}</span>
@@ -414,6 +439,19 @@ export const AccountModal: React.FC<AccountModalProps> = ({
           </div>
         </form>
       </div>
+
+      {/* Delete Confirmation Dialog */}
+      {accountToEdit && (
+        <ConfirmDialog
+          isOpen={confirmDeleteOpen}
+          title="Delete Wallet"
+          message={`Are you sure you want to remove "${accountToEdit.name}"? Transactions linked to this account will remain in your ledger.`}
+          confirmLabel="Delete Wallet"
+          isDestructive={true}
+          onConfirm={executeDelete}
+          onCancel={() => setConfirmDeleteOpen(false)}
+        />
+      )}
     </div>
   );
 };

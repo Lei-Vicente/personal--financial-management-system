@@ -7,11 +7,14 @@ import {
   ArrowUpDown,
   Calendar,
   Tag,
-  AlertCircle
+  AlertCircle,
+  X,
+  RotateCcw
 } from 'lucide-react';
 import { User, Category, Transaction } from '../types.ts';
-import { apiFetch, apiFetchFresh, apiFetchCached, getCachedData, formatMoney, downloadCsvFile } from '../utils.tsx';
+import { apiFetch, apiFetchFresh, apiFetchCached, getCachedData, formatMoney, downloadCsvFile , useDataVersion, notifyDataChanged } from '../utils.tsx';
 import { TransactionItem } from '../components/InteractiveCards.tsx';
+import { ConfirmDialog } from '../components/ConfirmDialog.tsx';
 
 interface TransactionsViewProps {
   user: User;
@@ -19,8 +22,6 @@ interface TransactionsViewProps {
   onOpenAddTransaction: (type?: 'INCOME' | 'EXPENSE' | 'TRANSFER') => void;
   onEditTransaction: (trans: Transaction) => void;
   initialFilter?: { type?: 'ALL' | 'INCOME' | 'EXPENSE' | 'TRANSFER'; categoryId?: string };
-  dataVersion?: number;
-  onDataChanged?: () => void;
 }
 
 export const TransactionsView: React.FC<TransactionsViewProps> = ({
@@ -29,8 +30,6 @@ export const TransactionsView: React.FC<TransactionsViewProps> = ({
   onOpenAddTransaction,
   onEditTransaction,
   initialFilter,
-  dataVersion,
-  onDataChanged,
 }) => {
   const [transactions, setTransactions] = useState<Transaction[]>(() => getCachedData<any>('/api/transactions?page=1&limit=15')?.transactions || []);
   const [loading, setLoading] = useState(() => !getCachedData('/api/transactions?page=1&limit=15'));
@@ -86,21 +85,62 @@ export const TransactionsView: React.FC<TransactionsViewProps> = ({
 
   useEffect(() => {
     loadTransactions();
-  }, [search, typeFilter, categoryFilter, startDate, endDate, sortBy, sortOrder, page, dataVersion]);
+  }, [search, typeFilter, categoryFilter, startDate, endDate, sortBy, sortOrder, page]);
 
-  const handleDelete = async (id: string) => {
-    if (!window.confirm('Are you sure you want to delete this transaction permanently?')) return;
-    // Optimistic UI update: instantly remove from list
-    setTransactions((prev) => prev.filter((t) => t.id !== id));
-    setTotal((prev) => Math.max(0, prev - 1));
-    try {
-      await apiFetch(`/api/transactions/${id}`, { method: 'DELETE' });
-      loadTransactions();
-      onDataChanged?.();
-    } catch (err) {
-      console.error('Failed to delete transaction:', err);
-      loadTransactions();
-    }
+  // Confirm dialog state
+  const [confirmDialog, setConfirmDialog] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    confirmLabel?: string;
+    isDestructive?: boolean;
+    onConfirm: () => void;
+  }>({
+    isOpen: false,
+    title: '',
+    message: '',
+    onConfirm: () => {},
+  });
+
+  const hasActiveFilters = Boolean(
+    search.trim() ||
+    typeFilter !== 'ALL' ||
+    categoryFilter !== 'ALL' ||
+    startDate ||
+    endDate
+  );
+
+  const handleResetFilters = () => {
+    setSearch('');
+    setTypeFilter('ALL');
+    setCategoryFilter('ALL');
+    setStartDate('');
+    setEndDate('');
+    setPage(1);
+  };
+
+  const handleDelete = (id: string) => {
+    setConfirmDialog({
+      isOpen: true,
+      title: 'Delete Transaction',
+      message: 'Are you sure you want to delete this transaction permanently from your records? This action cannot be undone.',
+      confirmLabel: 'Delete Transaction',
+      isDestructive: true,
+      onConfirm: async () => {
+        setConfirmDialog((prev) => ({ ...prev, isOpen: false }));
+        // Optimistic UI update: instantly remove from list
+        setTransactions((prev) => prev.filter((t) => t.id !== id));
+        setTotal((prev) => Math.max(0, prev - 1));
+        try {
+          await apiFetch(`/api/transactions/${id}`, { method: 'DELETE' });
+          loadTransactions();
+          notifyDataChanged();
+        } catch (err) {
+          console.error('Failed to delete transaction:', err);
+          loadTransactions();
+        }
+      },
+    });
   };
 
   const handleExportCSV = async () => {
@@ -190,8 +230,19 @@ export const TransactionsView: React.FC<TransactionsViewProps> = ({
               value={search}
               onChange={(e) => { setSearch(e.target.value); setPage(1); }}
               placeholder="Search description, payment, notes..."
-              className="w-full pl-9 pr-3 py-2 bg-[#FFFFFF] border border-[#D9D9D4] rounded-xl text-xs text-[#111111] placeholder-[#A3A3A0] focus:outline-none focus:border-[#2563EB]"
+              className="w-full pl-9 pr-9 py-2 bg-[#FFFFFF] border border-[#D9D9D4] rounded-xl text-xs text-[#111111] placeholder-[#A3A3A0] focus:outline-none focus:border-[#2563EB]"
             />
+            {search && (
+              <button
+                type="button"
+                onClick={() => { setSearch(''); setPage(1); }}
+                className="absolute right-2.5 top-2.5 p-0.5 text-[#6B6B67] hover:text-[#111111] rounded-md transition-colors cursor-pointer"
+                title="Clear search"
+                aria-label="Clear search"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            )}
           </div>
 
           {/* Type Filter */}
@@ -293,9 +344,39 @@ export const TransactionsView: React.FC<TransactionsViewProps> = ({
             ))}
           </div>
         ) : transactions.length === 0 ? (
-          <div className="bg-[#FFFFFF] border border-[#D9D9D4] rounded-2xl p-12 text-center space-y-3">
-            <p className="text-sm font-semibold text-[#111111]">No matching transactions found.</p>
-            <p className="text-xs text-[#6B6B67]">Try changing your search term or date filters.</p>
+          <div className="bg-[#FFFFFF] border border-[#D9D9D4] rounded-2xl p-12 text-center space-y-4 shadow-xs">
+            <div className="w-12 h-12 rounded-2xl bg-[#EBEBE7] flex items-center justify-center mx-auto text-[#6B6B67]">
+              {hasActiveFilters ? <Filter className="w-6 h-6" /> : <Tag className="w-6 h-6" />}
+            </div>
+            <div>
+              <p className="text-sm font-bold text-[#111111]">
+                {hasActiveFilters ? 'No matching transactions found' : 'No transactions recorded yet'}
+              </p>
+              <p className="text-xs text-[#6B6B67] mt-1 max-w-sm mx-auto leading-relaxed">
+                {hasActiveFilters
+                  ? 'None of your records match the active filter criteria. Try adjusting or clearing your search and filters.'
+                  : 'Start tracking your financial cashflow by recording your first income, expense, or transfer.'}
+              </p>
+            </div>
+            {hasActiveFilters ? (
+              <button
+                type="button"
+                onClick={handleResetFilters}
+                className="px-4 py-2 bg-[#EBEBE7] hover:bg-[#D9D9D4] active:scale-[0.98] text-[#111111] rounded-xl text-xs font-semibold inline-flex items-center space-x-1.5 transition-all cursor-pointer"
+              >
+                <RotateCcw className="w-3.5 h-3.5" />
+                <span>Reset All Filters</span>
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={() => onOpenAddTransaction()}
+                className="px-4 py-2 bg-[#111111] hover:bg-[#2563EB] active:scale-[0.98] text-white rounded-xl text-xs font-semibold inline-flex items-center space-x-1.5 transition-all cursor-pointer shadow-xs"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                <span>Record Transaction</span>
+              </button>
+            )}
           </div>
         ) : (
           transactions.map((t) => (
@@ -320,7 +401,7 @@ export const TransactionsView: React.FC<TransactionsViewProps> = ({
             <button
               onClick={() => setPage((p) => Math.max(1, p - 1))}
               disabled={page === 1}
-              className="px-3 py-1.5 bg-[#FFFFFF] border border-[#D9D9D4] text-xs font-semibold rounded-lg disabled:opacity-40 cursor-pointer"
+              className="px-3 py-1.5 bg-[#FFFFFF] border border-[#D9D9D4] text-xs font-semibold rounded-lg disabled:opacity-40 cursor-pointer active:scale-[0.98]"
             >
               Previous
             </button>
@@ -328,13 +409,24 @@ export const TransactionsView: React.FC<TransactionsViewProps> = ({
             <button
               onClick={() => setPage((p) => p + 1)}
               disabled={page * limit >= total}
-              className="px-3 py-1.5 bg-[#FFFFFF] border border-[#D9D9D4] text-xs font-semibold rounded-lg disabled:opacity-40 cursor-pointer"
+              className="px-3 py-1.5 bg-[#FFFFFF] border border-[#D9D9D4] text-xs font-semibold rounded-lg disabled:opacity-40 cursor-pointer active:scale-[0.98]"
             >
               Next
             </button>
           </div>
         </div>
       )}
+
+      {/* Confirm Action Dialog */}
+      <ConfirmDialog
+        isOpen={confirmDialog.isOpen}
+        title={confirmDialog.title}
+        message={confirmDialog.message}
+        confirmLabel={confirmDialog.confirmLabel}
+        isDestructive={confirmDialog.isDestructive}
+        onConfirm={confirmDialog.onConfirm}
+        onCancel={() => setConfirmDialog(prev => ({ ...prev, isOpen: false }))}
+      />
     </div>
   );
 };

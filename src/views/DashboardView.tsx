@@ -11,9 +11,10 @@ import {
   AlertTriangle
 } from 'lucide-react';
 import { User, Category, Transaction, Budget, SavingsGoal, DashboardAnalytics, Bill, Account } from '../types.ts';
-import { apiFetch, apiFetchFresh, apiFetchCached, getCachedData, formatMoney, formatDate } from '../utils.tsx';
+import { apiFetch, apiFetchFresh, apiFetchCached, getCachedData, formatMoney, formatDate , useDataVersion, notifyDataChanged } from '../utils.tsx';
 import { BalanceCard, IncomeCard, ExpenseCard, BudgetCard, SavingsGoalCard, TransactionItem } from '../components/InteractiveCards.tsx';
 import { WalletSection } from '../components/WalletSection.tsx';
+import { ConfirmDialog } from '../components/ConfirmDialog.tsx';
 
 interface DashboardViewProps {
   user: User;
@@ -28,8 +29,6 @@ interface DashboardViewProps {
   onOpenAddBill?: () => void;
   onOpenAddWallet?: () => void;
   onEditTransaction: (trans: Transaction) => void;
-  dataVersion?: number;
-  onDataChanged?: () => void;
 }
 
 export const DashboardView: React.FC<DashboardViewProps> = ({
@@ -45,8 +44,6 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   onOpenAddBill,
   onOpenAddWallet,
   onEditTransaction,
-  dataVersion,
-  onDataChanged,
 }) => {
   // Synchronous cache initialization for instantaneous 0ms rendering
   const [analytics, setAnalytics] = useState<DashboardAnalytics | null>(() => getCachedData('/api/analytics/dashboard'));
@@ -89,41 +86,76 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
     }
   };
 
+  const dataVersion = useDataVersion();
+
   useEffect(() => {
     loadDashboardData();
   }, [user, dataVersion]);
 
-  const handleDeleteTransaction = async (id: string) => {
-    if (!window.confirm('Are you sure you want to delete this transaction?')) return;
-    // Optimistic UI update: instantly remove from state
-    setRecentTransactions(prev => prev.filter(t => t.id !== id));
-    try {
-      await apiFetch(`/api/transactions/${id}`, { method: 'DELETE' });
-      loadDashboardData();
-      onDataChanged?.();
-    } catch (err) {
-      console.error('Failed to delete transaction:', err);
-      loadDashboardData();
-    }
+  // Confirm Dialog State
+  const [confirmDialog, setConfirmDialog] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    confirmLabel?: string;
+    isDestructive?: boolean;
+    onConfirm: () => void;
+  }>({
+    isOpen: false,
+    title: '',
+    message: '',
+    onConfirm: () => {},
+  });
+
+  const handleDeleteTransaction = (id: string) => {
+    setConfirmDialog({
+      isOpen: true,
+      title: 'Delete Transaction',
+      message: 'Are you sure you want to delete this transaction permanently? This action cannot be undone.',
+      confirmLabel: 'Delete Transaction',
+      isDestructive: true,
+      onConfirm: async () => {
+        setConfirmDialog(prev => ({ ...prev, isOpen: false }));
+        // Optimistic UI update: instantly remove from state
+        setRecentTransactions(prev => prev.filter(t => t.id !== id));
+        try {
+          await apiFetch(`/api/transactions/${id}`, { method: 'DELETE' });
+          loadDashboardData();
+          notifyDataChanged();
+        } catch (err) {
+          console.error('Failed to delete transaction:', err);
+          loadDashboardData();
+        }
+      },
+    });
   };
 
-  const handlePayBill = async (bill: Bill) => {
-    if (!window.confirm(`Mark "${bill.name}" (${formatMoney(bill.amount, user.currency)}) as paid?`)) return;
-    try {
-      await apiFetch(`/api/bills/${bill.id}/pay`, {
-        method: 'POST',
-        body: JSON.stringify({ create_transaction: true }),
-      });
-      loadDashboardData();
-      onDataChanged?.();
-    } catch (err) {
-      console.error('Failed to pay bill:', err);
-    }
+  const handlePayBill = (bill: Bill) => {
+    setConfirmDialog({
+      isOpen: true,
+      title: 'Confirm Bill Payment',
+      message: `Mark "${bill.name}" (${formatMoney(bill.amount, user.currency)}) as paid and generate a corresponding expense entry?`,
+      confirmLabel: 'Pay Bill',
+      isDestructive: false,
+      onConfirm: async () => {
+        setConfirmDialog(prev => ({ ...prev, isOpen: false }));
+        try {
+          await apiFetch(`/api/bills/${bill.id}/pay`, {
+            method: 'POST',
+            body: JSON.stringify({ create_transaction: true }),
+          });
+          loadDashboardData();
+          notifyDataChanged();
+        } catch (err) {
+          console.error('Failed to pay bill:', err);
+        }
+      },
+    });
   };
 
   return (
     <div className="space-y-8 animate-fadeIn pb-16">
-      {/* 1. Header & Greeting with Quick Actions */}
+      {/* 1. Header & Greeting with Intentional Action Hierarchy */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-2xl sm:text-3xl font-extrabold text-[#111111] tracking-tight">
@@ -134,55 +166,6 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           </p>
         </div>
 
-        {/* Quick Actions (Section 15) */}
-        <div className="flex items-center gap-2 flex-wrap">
-          <button
-            onClick={() => onOpenAddTransaction('EXPENSE')}
-            className="px-3 py-1.5 bg-[#111111] hover:bg-[#B91C1C] text-white text-xs font-semibold rounded-xl transition-colors cursor-pointer shadow-xs flex items-center space-x-1.5"
-          >
-            <Plus className="w-3.5 h-3.5" />
-            <span>Add Expense</span>
-          </button>
-          <button
-            onClick={() => onOpenAddTransaction('INCOME')}
-            className="px-3 py-1.5 bg-[#FFFFFF] border border-[#D9D9D4] hover:border-[#15803D] hover:text-[#15803D] text-[#111111] text-xs font-semibold rounded-xl transition-colors cursor-pointer shadow-xs flex items-center space-x-1.5"
-          >
-            <Plus className="w-3.5 h-3.5" />
-            <span>Add Income</span>
-          </button>
-          <button
-            onClick={() => onOpenAddTransaction('TRANSFER')}
-            className="px-3 py-1.5 bg-[#FFFFFF] border border-[#D9D9D4] hover:border-[#2563EB] hover:text-[#2563EB] text-[#111111] text-xs font-semibold rounded-xl transition-colors cursor-pointer shadow-xs flex items-center space-x-1.5"
-          >
-            <ArrowRightLeft className="w-3.5 h-3.5" />
-            <span>Transfer</span>
-          </button>
-          <button
-            onClick={onOpenAddBudget}
-            className="px-3 py-1.5 bg-[#FFFFFF] border border-[#D9D9D4] hover:border-[#2563EB] hover:text-[#2563EB] text-[#111111] text-xs font-semibold rounded-xl transition-colors cursor-pointer shadow-xs flex items-center space-x-1.5"
-          >
-            <Plus className="w-3.5 h-3.5" />
-            <span>Add Budget</span>
-          </button>
-          {onOpenAddBill && (
-            <button
-              onClick={onOpenAddBill}
-              className="px-3 py-1.5 bg-[#FFFFFF] border border-[#D9D9D4] hover:border-[#D97706] hover:text-[#D97706] text-[#111111] text-xs font-semibold rounded-xl transition-colors cursor-pointer shadow-xs flex items-center space-x-1.5"
-            >
-              <Plus className="w-3.5 h-3.5" />
-              <span>Add Bill</span>
-            </button>
-          )}
-          {onOpenAddWallet && (
-            <button
-              onClick={onOpenAddWallet}
-              className="px-3 py-1.5 bg-[#FFFFFF] border border-[#D9D9D4] hover:border-[#15803D] hover:text-[#15803D] text-[#111111] text-xs font-semibold rounded-xl transition-colors cursor-pointer shadow-xs flex items-center space-x-1.5"
-            >
-              <Plus className="w-3.5 h-3.5" />
-              <span>Add Wallet</span>
-            </button>
-          )}
-        </div>
       </div>
 
       {/* 2. Interactive Primary Metric Cards (Sections 11 & 12) */}
@@ -220,10 +203,6 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             <BalanceCard
               totalBalance={analytics?.balance?.total_balance || 0}
               changePct={analytics?.balance?.change_pct || 0}
-              currentIncome={analytics?.income?.current_month || 0}
-              currentExpense={analytics?.expense?.current_month || 0}
-              currentNet={analytics?.balance?.current_net || 0}
-              previousNet={analytics?.balance?.previous_net || 0}
               currency={user.currency}
             />
 
@@ -246,8 +225,8 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           {/* Wallets & Liquid Savings Cards (Landbank, GoTyme, GCash, Cash on-hand, etc.) */}
           <WalletSection
             user={user}
-            dataVersion={dataVersion}
-            onDataChanged={onDataChanged}
+            
+            
             onOpenAddWallet={onOpenAddWallet}
             accounts={accounts}
             highlightedAccountId={highlightedAccountId}
@@ -260,17 +239,13 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           <div>
             <div className="flex items-center justify-between pb-4 border-b border-[#D9D9D4]/60 mb-4">
               <div className="flex items-center space-x-2">
-                <PieChart className="w-4 h-4 text-[#2563EB]" />
+                <div className="w-7 h-7 rounded-lg bg-[#111111] text-white flex items-center justify-center">
+                  <PieChart className="w-3.5 h-3.5" />
+                </div>
                 <h2 className="text-base font-bold text-[#111111] tracking-tight">Category Budgets</h2>
               </div>
               <div className="flex items-center space-x-2">
-                <button
-                  onClick={onOpenAddBudget}
-                  className="px-2.5 py-1 bg-[#111111] hover:bg-[#2563EB] text-white rounded-lg text-xs font-semibold flex items-center space-x-1 transition-colors cursor-pointer"
-                >
-                  <Plus className="w-3 h-3" />
-                  <span>Add Budget</span>
-                </button>
+
                 <button
                   onClick={() => onNavigate('budgets')}
                   className="text-xs text-[#2563EB] hover:underline font-semibold flex items-center space-x-1 cursor-pointer"
@@ -306,7 +281,6 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
               </div>
             )}
           </div>
-
           {budgets.length > 0 && (
             <div className="pt-4 mt-4 border-t border-[#D9D9D4]/40">
               <button
@@ -325,7 +299,9 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           <div>
             <div className="flex items-center justify-between pb-4 border-b border-[#D9D9D4]/60 mb-4">
               <div className="flex items-center space-x-2">
-                <PiggyBank className="w-4 h-4 text-[#15803D]" />
+                <div className="w-7 h-7 rounded-lg bg-[#111111] text-white flex items-center justify-center">
+                  <PiggyBank className="w-3.5 h-3.5" />
+                </div>
                 <h2 className="text-base font-bold text-[#111111] tracking-tight">Savings Goals</h2>
               </div>
               <button
@@ -381,24 +357,20 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
       <div className="bg-[#FFFFFF] border border-[#D9D9D4] rounded-2xl p-5 sm:p-6 shadow-xs">
         <div className="flex items-center justify-between pb-4 border-b border-[#D9D9D4]/60 mb-4">
           <div className="flex items-center space-x-2">
-            <CalendarClock className="w-4 h-4 text-[#D97706]" />
-            <h2 className="text-base font-bold text-[#111111] tracking-tight">Upcoming Bills</h2>
-            {upcomingBills.length > 0 && (
-              <span className="px-2 py-0.5 text-[11px] font-semibold rounded-full bg-amber-50 text-amber-700 border border-amber-200">
-                {upcomingBills.length} Due Soon
-              </span>
-            )}
+            <div className="w-7 h-7 rounded-lg bg-[#111111] text-white flex items-center justify-center">
+              <CalendarClock className="w-3.5 h-3.5" />
+            </div>
+            <div className="flex items-center space-x-2">
+              <h2 className="text-base font-bold text-[#111111] tracking-tight">Upcoming Bills</h2>
+              {upcomingBills.length > 0 && (
+                <span className="px-2 py-0.5 text-[11px] font-semibold rounded-full bg-amber-50 text-amber-700 border border-amber-200">
+                  {upcomingBills.length} Due Soon
+                </span>
+              )}
+            </div>
           </div>
           <div className="flex items-center space-x-2">
-            {onOpenAddBill && (
-              <button
-                onClick={onOpenAddBill}
-                className="px-2.5 py-1 bg-[#111111] hover:bg-[#2563EB] text-white rounded-lg text-xs font-semibold flex items-center space-x-1 transition-colors cursor-pointer"
-              >
-                <Plus className="w-3 h-3" />
-                <span>Add Bill</span>
-              </button>
-            )}
+
             <button
               onClick={() => onNavigate('bills')}
               className="text-xs text-[#2563EB] hover:underline font-semibold flex items-center space-x-1 cursor-pointer"
@@ -477,11 +449,15 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
       <div className="bg-[#FFFFFF] border border-[#D9D9D4] rounded-2xl p-6 shadow-xs">
         <div className="flex items-center justify-between pb-4 border-b border-[#D9D9D4]/60 mb-4">
           <div>
-            <h2 className="text-base font-bold text-[#111111] tracking-tight flex items-center space-x-2">
-              <Receipt className="w-4 h-4 text-[#2563EB]" />
-              <span>Recent Transactions</span>
-            </h2>
-            <p className="text-xs text-[#6B6B67] mt-0.5">
+            <div className="flex items-center space-x-2">
+              <div className="w-7 h-7 rounded-lg bg-[#111111] text-white flex items-center justify-center">
+                <Receipt className="w-3.5 h-3.5" />
+              </div>
+              <h2 className="text-base font-bold text-[#111111] tracking-tight">
+                Recent Transactions
+              </h2>
+            </div>
+            <p className="text-xs text-[#6B6B67] mt-1.5">
               Click any item to inspect details, notes, or modify
             </p>
           </div>
@@ -524,6 +500,16 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
       </div>
         </>
       )}
+      {/* Confirm Action Dialog */}
+      <ConfirmDialog
+        isOpen={confirmDialog.isOpen}
+        title={confirmDialog.title}
+        message={confirmDialog.message}
+        confirmLabel={confirmDialog.confirmLabel}
+        isDestructive={confirmDialog.isDestructive}
+        onConfirm={confirmDialog.onConfirm}
+        onCancel={() => setConfirmDialog(prev => ({ ...prev, isOpen: false }))}
+      />
     </div>
   );
 };

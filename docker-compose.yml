@@ -1,0 +1,21 @@
+version: '3.8'
+
+services:
+  db:
+    image: postgres:15-alpine
+    restart: always
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgrespassword
+      POSTGRES_DB: finance
+    ports:
+      - "5432:5432"
+    volumes:
+      - db_data:/var/lib/postgresql/data
+      # Mount the dummy auth script first
+      - ./docker/00-auth-schema.sql:/docker-entrypoint-initdb.d/00-auth-schema.sql
+      # Mount the actual Supabase schema second so it auto-initializes the database!
+      - ./supabase/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql
+
+volumes:
+  db_data:

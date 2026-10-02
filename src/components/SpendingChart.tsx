@@ -47,11 +47,13 @@ export const SpendingChart: React.FC<SpendingChartProps> = ({ currency }) => {
       {/* Header with Title & Range Switchers */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-[#D9D9D4]/60">
         <div>
-          <h2 className="text-base font-bold text-[#111111] tracking-tight flex items-center space-x-2">
-            <BarChart2 className="w-4 h-4 text-[#2563EB]" />
-            <span>Spending Overview</span>
-          </h2>
-          <p className="text-xs text-[#6B6B67] mt-0.5">
+          <div className="flex items-center space-x-2">
+            <div className="w-7 h-7 rounded-lg bg-[#111111] text-white flex items-center justify-center">
+              <BarChart2 className="w-3.5 h-3.5" />
+            </div>
+            <h2 className="text-base font-bold text-[#111111] tracking-tight">Spending Overview</h2>
+          </div>
+          <p className="text-xs text-[#6B6B67] mt-1.5">
             Cashflow dynamics across {range} time intervals
           </p>
         </div>
@@ -115,8 +117,10 @@ export const SpendingChart: React.FC<SpendingChartProps> = ({ currency }) => {
             {/* Active inspection banner */}
             {hoveredPoint && (
               <div className="p-3 bg-[#EBEBE7]/50 rounded-xl flex items-center justify-between text-xs animate-fadeIn">
-                <span className="font-semibold text-[#111111] flex items-center space-x-1.5">
-                  <Calendar className="w-3.5 h-3.5 text-[#2563EB]" />
+                <span className="font-semibold text-[#111111] flex items-center space-x-2">
+                  <div className="w-6 h-6 rounded-md bg-[#111111] text-white flex items-center justify-center">
+                    <Calendar className="w-3.5 h-3.5" />
+                  </div>
                   <span>{hoveredPoint.label}</span>
                 </span>
                 <div className="flex items-center space-x-4">

@@ -25,43 +25,20 @@ import { formatMoney, formatDate, getCategoryIcon } from '../utils.tsx';
 interface BalanceCardProps {
   totalBalance: number;
   changePct: number;
-  currentIncome: number;
-  currentExpense: number;
-  currentNet: number;
-  previousNet: number;
   currency: string;
 }
 
 export const BalanceCard: React.FC<BalanceCardProps> = ({
   totalBalance,
   changePct,
-  currentIncome,
-  currentExpense,
-  currentNet,
-  previousNet,
   currency,
 }) => {
-  const [isExpanded, setIsExpanded] = useState(false);
   const isPositive = changePct >= 0;
 
   return (
     <div
       id="interactive-balance-card"
-      tabIndex={0}
-      role="button"
-      aria-expanded={isExpanded}
-      onClick={() => setIsExpanded(!isExpanded)}
-      onKeyDown={(e) => {
-        if (e.key === 'Enter' || e.key === ' ') {
-          e.preventDefault();
-          setIsExpanded(!isExpanded);
-        }
-      }}
-      className={`bg-[#FFFFFF] border rounded-2xl p-6 transition-all duration-200 cursor-pointer select-none focus:outline-none focus:ring-2 focus:ring-[#2563EB]/40 ${
-        isExpanded
-          ? 'border-[#2563EB] shadow-md'
-          : 'border-[#D9D9D4] hover:border-[#111111]/40 hover:-translate-y-0.5 shadow-xs'
-      }`}
+      className="bg-[#FFFFFF] border border-[#D9D9D4] rounded-2xl p-6 flex flex-col justify-between h-full hover:border-[#111111]/40 hover:-translate-y-0.5 transition-all duration-200 shadow-xs"
     >
       <div className="flex items-center justify-between">
         <div className="flex items-center space-x-2">
@@ -72,57 +49,24 @@ export const BalanceCard: React.FC<BalanceCardProps> = ({
             All Accounts
           </span>
         </div>
-        <div className="flex items-center space-x-1.5 text-xs text-[#6B6B67]">
-          <span>{isExpanded ? 'Collapse' : 'Details'}</span>
-          {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+        <div className="w-8 h-8 rounded-xl bg-gray-50 text-[#111111] flex items-center justify-center">
+          <CreditCard className="w-4 h-4" />
         </div>
       </div>
 
-      <div className="mt-3 flex items-baseline justify-between flex-wrap gap-2">
-        <h2 className="text-3xl sm:text-4xl font-extrabold text-[#111111] tracking-tight tabular-nums">
+      <div className="mt-3">
+        <span className="text-2xl sm:text-3xl font-extrabold text-[#111111] tracking-tight tabular-nums block">
           {formatMoney(totalBalance, currency)}
-        </h2>
-
-        <div className={`inline-flex items-center space-x-1 text-xs font-semibold px-2.5 py-1 rounded-full ${
-          isPositive ? 'bg-green-50 text-[#15803D]' : 'bg-red-50 text-[#B91C1C]'
-        }`}>
-          {isPositive ? <TrendingUp className="w-3.5 h-3.5" /> : <TrendingDown className="w-3.5 h-3.5" />}
-          <span>{isPositive ? `+${changePct}%` : `${changePct}%`} vs prev month</span>
+        </span>
+        <div className="flex flex-wrap items-center justify-between gap-1.5 mt-2">
+          <span className={`text-xs font-semibold flex items-center space-x-1 ${
+            isPositive ? 'text-[#15803D]' : 'text-[#B91C1C]'
+          }`}>
+            {isPositive ? <TrendingUp className="w-3.5 h-3.5" /> : <TrendingDown className="w-3.5 h-3.5" />}
+            <span>{isPositive ? `+${changePct}%` : `${changePct}%`} vs prev month</span>
+          </span>
         </div>
       </div>
-
-      {/* Expanded Financial Breakdown */}
-      {isExpanded && (
-        <div className="mt-6 pt-5 border-t border-[#D9D9D4] flex flex-wrap items-start justify-between gap-4 sm:gap-6 animate-fadeIn">
-          <div className="min-w-[130px] flex-1">
-            <span className="text-[11px] font-medium text-[#6B6B67] block">This Month Income</span>
-            <span className="text-sm sm:text-base font-bold text-[#15803D] tabular-nums block mt-0.5 whitespace-nowrap">
-              +{formatMoney(currentIncome, currency)}
-            </span>
-          </div>
-
-          <div className="min-w-[130px] flex-1">
-            <span className="text-[11px] font-medium text-[#6B6B67] block">This Month Expense</span>
-            <span className="text-sm sm:text-base font-bold text-[#B91C1C] tabular-nums block mt-0.5 whitespace-nowrap">
-              -{formatMoney(currentExpense, currency)}
-            </span>
-          </div>
-
-          <div className="min-w-[110px] flex-1">
-            <span className="text-[11px] font-medium text-[#6B6B67] block">Net Savings Rate</span>
-            <span className="text-sm sm:text-base font-bold text-[#111111] tabular-nums block mt-0.5 whitespace-nowrap">
-              {currentIncome > 0 ? `${Math.max(0, Math.round((currentNet / currentIncome) * 100))}%` : '0%'}
-            </span>
-          </div>
-
-          <div className="min-w-[130px] flex-1">
-            <span className="text-[11px] font-medium text-[#6B6B67] block">Prev Month Net</span>
-            <span className="text-sm sm:text-base font-bold text-[#6B6B67] tabular-nums block mt-0.5 whitespace-nowrap">
-              {formatMoney(previousNet, currency, true)}
-            </span>
-          </div>
-        </div>
-      )}
     </div>
   );
 };
@@ -152,7 +96,7 @@ export const IncomeCard: React.FC<IncomeCardProps> = ({ income, changePct, curre
           onClick();
         }
       }}
-      className="bg-[#FFFFFF] border border-[#D9D9D4] rounded-2xl p-6 hover:border-[#15803D]/60 hover:-translate-y-0.5 transition-all duration-200 cursor-pointer shadow-xs focus:outline-none focus:ring-2 focus:ring-[#15803D]/30"
+      className="bg-[#FFFFFF] border border-[#D9D9D4] rounded-2xl p-6 flex flex-col justify-between h-full hover:border-[#15803D]/60 hover:-translate-y-0.5 transition-all duration-200 cursor-pointer shadow-xs focus:outline-none focus:ring-2 focus:ring-[#15803D]/30"
     >
       <div className="flex items-center justify-between">
         <span className="text-xs font-semibold uppercase tracking-wider text-[#6B6B67]">
@@ -210,7 +154,7 @@ export const ExpenseCard: React.FC<ExpenseCardProps> = ({
           onClick();
         }
       }}
-      className="bg-[#FFFFFF] border border-[#D9D9D4] rounded-2xl p-6 hover:border-[#B91C1C]/60 hover:-translate-y-0.5 transition-all duration-200 cursor-pointer shadow-xs focus:outline-none focus:ring-2 focus:ring-[#B91C1C]/30"
+      className="bg-[#FFFFFF] border border-[#D9D9D4] rounded-2xl p-6 flex flex-col justify-between h-full hover:border-[#B91C1C]/60 hover:-translate-y-0.5 transition-all duration-200 cursor-pointer shadow-xs focus:outline-none focus:ring-2 focus:ring-[#B91C1C]/30"
     >
       <div className="flex items-center justify-between">
         <span className="text-xs font-semibold uppercase tracking-wider text-[#6B6B67]">
