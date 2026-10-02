@@ -425,7 +425,7 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
               <button
                 type="button"
                 onClick={() => setShowAdvancedMethod(!showAdvancedMethod)}
-                className="text-[11px] text-[#2563EB] hover:underline font-semibold cursor-pointer"
+                className="text-[11px] text-[#111111] hover:underline font-semibold cursor-pointer"
               >
                 {showAdvancedMethod ? 'Hide method override' : 'Change method label'}
               </button>
@@ -476,7 +476,7 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
               id="submit-transaction-btn"
               type="submit"
               disabled={loading}
-              className="py-2.5 px-5 bg-[#111111] hover:bg-[#2563EB] text-white text-xs font-semibold rounded-xl shadow-xs transition-all cursor-pointer disabled:opacity-60 active:scale-[0.98]"
+              className="py-2.5 px-5 bg-[#111111] hover:bg-[#333333] text-white text-xs font-semibold rounded-xl shadow-xs transition-all cursor-pointer disabled:opacity-60 active:scale-[0.98]"
             >
               {loading ? 'Saving...' : transactionToEdit ? 'Update Transaction' : 'Save Transaction'}
             </button>

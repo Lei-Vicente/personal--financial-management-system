@@ -186,7 +186,7 @@ export const BudgetModal: React.FC<BudgetModalProps> = ({
               id="submit-budget-btn"
               type="submit"
               disabled={loading}
-              className="py-2.5 px-5 bg-[#111111] hover:bg-[#2563EB] text-white text-xs font-semibold rounded-xl shadow-xs transition-all cursor-pointer disabled:opacity-60 active:scale-[0.98]"
+              className="py-2.5 px-5 bg-[#111111] hover:bg-[#333333] text-white text-xs font-semibold rounded-xl shadow-xs transition-all cursor-pointer disabled:opacity-60 active:scale-[0.98]"
             >
               {loading ? 'Saving...' : 'Save Budget'}
             </button>

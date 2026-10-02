@@ -189,7 +189,7 @@ export const AddGoalModal: React.FC<AddGoalModalProps> = ({
               id="submit-goal-btn"
               type="submit"
               disabled={loading}
-              className="py-2.5 px-5 bg-[#111111] hover:bg-[#2563EB] text-white text-xs font-semibold rounded-xl shadow-xs transition-all cursor-pointer disabled:opacity-60 active:scale-[0.98]"
+              className="py-2.5 px-5 bg-[#111111] hover:bg-[#333333] text-white text-xs font-semibold rounded-xl shadow-xs transition-all cursor-pointer disabled:opacity-60 active:scale-[0.98]"
             >
               {loading ? 'Creating...' : 'Create Goal'}
             </button>

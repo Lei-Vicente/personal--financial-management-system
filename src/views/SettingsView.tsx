@@ -265,7 +265,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ user, onUpdateUser, 
               <button
                 type="submit"
                 disabled={saving}
-                className="px-5 py-2.5 bg-[#111111] hover:bg-[#2563EB] text-white text-xs font-semibold rounded-xl shadow-xs transition-colors cursor-pointer disabled:opacity-50"
+                className="px-5 py-2.5 bg-[#111111] hover:bg-[#333333] text-white text-xs font-semibold rounded-xl shadow-xs transition-colors cursor-pointer disabled:opacity-50"
               >
                 {saving ? 'Saving changes...' : 'Save Profile Changes'}
               </button>
@@ -340,7 +340,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ user, onUpdateUser, 
                 <button
                   type="submit"
                   disabled={saving}
-                  className="px-5 py-2.5 bg-[#111111] hover:bg-[#2563EB] text-white text-xs font-semibold rounded-xl shadow-xs transition-colors cursor-pointer disabled:opacity-50"
+                  className="px-5 py-2.5 bg-[#111111] hover:bg-[#333333] text-white text-xs font-semibold rounded-xl shadow-xs transition-colors cursor-pointer disabled:opacity-50"
                 >
                   {saving ? 'Updating password...' : 'Update Password'}
                 </button>

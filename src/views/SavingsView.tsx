@@ -5,6 +5,8 @@ import { apiFetch, apiFetchFresh, apiFetchCached, getCachedData, formatMoney , u
 import { SavingsGoalCard } from '../components/InteractiveCards.tsx';
 import { WalletSection } from '../components/WalletSection.tsx';
 import { ConfirmDialog } from '../components/ConfirmDialog.tsx';
+import { EmptyState } from '../components/EmptyState.tsx';
+import { SectionSkeleton } from '../components/Skeletons.tsx';
 
 interface SavingsViewProps {
   user: User;
@@ -116,7 +118,7 @@ export const SavingsView: React.FC<SavingsViewProps> = ({
         <button
           id="create-savings-goal-btn"
           onClick={onOpenAddGoal}
-          className="px-4 py-2 bg-[#111111] hover:bg-[#2563EB] text-white rounded-xl text-xs font-semibold flex items-center space-x-1.5 transition-colors cursor-pointer shadow-xs self-start sm:self-auto"
+          className="px-4 py-2 bg-[#111111] hover:bg-[#333333] text-white rounded-xl text-xs font-semibold flex items-center space-x-1.5 transition-colors cursor-pointer shadow-xs self-start sm:self-auto"
         >
           <Plus className="w-3.5 h-3.5" />
           <span>New Savings Goal</span>
@@ -167,38 +169,18 @@ export const SavingsView: React.FC<SavingsViewProps> = ({
         </h2>
 
         {loading && goals.length === 0 ? (
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-5 animate-pulse">
-            {[1, 2, 3, 4].map((i) => (
-              <div key={i} className="bg-white border border-[#D9D9D4] rounded-2xl p-6 h-48 shadow-xs">
-                <div className="flex justify-between items-center mb-4">
-                  <div className="h-5 w-36 bg-gray-200 rounded"></div>
-                  <div className="h-5 w-16 bg-gray-200 rounded-full"></div>
-                </div>
-                <div className="h-8 w-44 bg-gray-200 rounded mb-4"></div>
-                <div className="h-3 bg-gray-100 rounded-full mb-3"></div>
-                <div className="h-4 w-28 bg-gray-100 rounded"></div>
-              </div>
-            ))}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-5 min-w-0">
+            <SectionSkeleton count={2} />
+            <SectionSkeleton count={2} />
           </div>
         ) : goals.length === 0 ? (
-          <div className="bg-[#FFFFFF] border border-[#D9D9D4] rounded-2xl p-12 text-center space-y-4 shadow-xs">
-            <div className="w-12 h-12 rounded-2xl bg-[#EBEBE7] flex items-center justify-center mx-auto text-[#6B6B67]">
-              <Target className="w-6 h-6" />
-            </div>
-            <div>
-              <p className="text-sm font-bold text-[#111111]">No savings goals created yet</p>
-              <p className="text-xs text-[#6B6B67] mt-1 max-w-sm mx-auto leading-relaxed">
-                Build your financial resilience and track milestones by creating an emergency reserve, house deposit, or investment fund.
-              </p>
-            </div>
-            <button
-              onClick={onOpenAddGoal}
-              className="px-4 py-2 bg-[#111111] hover:bg-[#2563EB] active:scale-[0.98] text-white rounded-xl text-xs font-semibold inline-flex items-center space-x-1.5 transition-all cursor-pointer shadow-xs"
-            >
-              <Plus className="w-3.5 h-3.5" />
-              <span>Create First Goal</span>
-            </button>
-          </div>
+          <EmptyState
+            icon={Target}
+            title="No savings goals created yet"
+            description="Build your financial resilience and track milestones by creating an emergency reserve, house deposit, or investment fund."
+            actionLabel="Create First Goal"
+            onAction={onOpenAddGoal}
+          />
         ) : (
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-5 min-w-0">
             {goals.map((g) => (

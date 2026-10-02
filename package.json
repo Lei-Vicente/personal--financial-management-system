@@ -19,6 +19,7 @@
   "dependencies": {
     "@google/genai": "^2.4.0",
     "@tailwindcss/vite": "^4.3.3",
+    "@types/papaparse": "^5.5.2",
     "@types/pg": "^8.23.1",
     "@vitejs/plugin-react": "^6.1.1",
     "cookie-parser": "^1.4.7",
@@ -26,9 +27,11 @@
     "express": "^4.21.2",
     "lucide-react": "^0.546.0",
     "motion": "^12.23.24",
+    "papaparse": "^5.7.0",
     "pg": "^8.23.0",
     "react": "^19.0.1",
     "react-dom": "^19.0.1",
+    "recharts": "^3.10.1",
     "vite": "^8.3.0"
   },
   "devDependencies": {

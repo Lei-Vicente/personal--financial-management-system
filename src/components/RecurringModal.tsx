@@ -327,7 +327,7 @@ export const RecurringModal: React.FC<RecurringModalProps> = ({
             <button
               type="submit"
               disabled={loading}
-              className="py-2.5 px-5 bg-[#111111] hover:bg-[#2563EB] text-white text-xs font-semibold rounded-xl transition-colors disabled:opacity-50 flex items-center space-x-2 cursor-pointer shadow-xs"
+              className="py-2.5 px-5 bg-[#111111] hover:bg-[#333333] text-white text-xs font-semibold rounded-xl transition-colors disabled:opacity-50 flex items-center space-x-2 cursor-pointer shadow-xs"
             >
               {loading && <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />}
               <span>{recurringToEdit ? 'Save Changes' : 'Save Recurring Rule'}</span>

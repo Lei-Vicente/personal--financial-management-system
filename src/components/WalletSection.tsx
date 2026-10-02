@@ -5,6 +5,8 @@ import { apiFetchFresh, apiFetchCached, getCachedData, formatMoney, useDataVersi
 import { WalletCard } from './WalletCard.tsx';
 import { QuickBalanceModal } from './QuickBalanceModal.tsx';
 import { AccountModal } from './AccountModal.tsx';
+import { EmptyState } from './EmptyState.tsx';
+import { MetricCardSkeleton } from './Skeletons.tsx';
 
 interface WalletSectionProps {
   user: User;
@@ -159,7 +161,7 @@ export const WalletSection: React.FC<WalletSectionProps> = ({
                 setIsAccountModalOpen(true);
               }
             }}
-            className="px-3 py-1.5 bg-[#111111] hover:bg-[#2563EB] text-white rounded-xl text-xs font-semibold flex items-center space-x-1.5 transition-colors cursor-pointer shadow-xs"
+            className="px-3 py-1.5 bg-[#111111] hover:bg-[#333333] text-white rounded-xl text-xs font-semibold flex items-center space-x-1.5 transition-colors cursor-pointer shadow-xs"
           >
             <Plus className="w-3.5 h-3.5" />
             <span>Add Wallet</span>
@@ -192,47 +194,28 @@ export const WalletSection: React.FC<WalletSectionProps> = ({
 
       {/* Grid of Wallet Cards */}
       {loading && accounts.length === 0 ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 animate-pulse">
-          {[1, 2, 3, 4].map((i) => (
-            <div key={i} className="bg-white border border-[#D9D9D4] rounded-2xl p-5 h-44 shadow-xs flex flex-col justify-between">
-              <div className="flex items-center space-x-3">
-                <div className="w-10 h-10 bg-gray-200 rounded-xl" />
-                <div className="space-y-1.5 flex-1">
-                  <div className="h-3.5 bg-gray-200 rounded w-24" />
-                  <div className="h-2.5 bg-gray-100 rounded w-16" />
-                </div>
-              </div>
-              <div className="h-6 bg-gray-200 rounded w-28 my-2" />
-              <div className="h-7 bg-gray-100 rounded-xl w-full" />
-            </div>
-          ))}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <MetricCardSkeleton />
+          <MetricCardSkeleton />
+          <MetricCardSkeleton />
+          <MetricCardSkeleton />
         </div>
       ) : accounts.length === 0 ? (
-        <div className="bg-[#FFFFFF] border border-[#D9D9D4] rounded-2xl p-8 text-center space-y-3 shadow-xs">
-          <div className="w-12 h-12 rounded-2xl bg-[#EBEBE7] flex items-center justify-center mx-auto text-[#6B6B67]">
-            <Wallet className="w-6 h-6" />
-          </div>
-          <div>
-            <h3 className="text-sm font-bold text-[#111111]">No Wallets or Accounts Found</h3>
-            <p className="text-xs text-[#6B6B67] mt-1 max-w-sm mx-auto">
-              Add your Landbank, GoTyme, GCash, and Cash on-hand accounts to track your liquid savings in one place.
-            </p>
-          </div>
-          <button
-            onClick={() => {
-              if (onOpenAddWallet) {
-                onOpenAddWallet();
-              } else {
-                setAccountToEdit(null);
-                setIsAccountModalOpen(true);
-              }
-            }}
-            className="px-4 py-2 bg-[#111111] hover:bg-[#2563EB] text-white rounded-xl text-xs font-semibold inline-flex items-center space-x-1.5 transition-colors cursor-pointer"
-          >
-            <Plus className="w-3.5 h-3.5" />
-            <span>Setup First Wallet</span>
-          </button>
-        </div>
+        <EmptyState
+          icon={Wallet}
+          title="No Wallets or Accounts Found"
+          description="Add your Landbank, GoTyme, GCash, and Cash on-hand accounts to track your liquid savings in one place."
+          actionLabel="Setup First Wallet"
+          onAction={() => {
+            if (onOpenAddWallet) {
+              onOpenAddWallet();
+            } else {
+              setAccountToEdit(null);
+              setIsAccountModalOpen(true);
+            }
+          }}
+          className="shadow-none border-[#D9D9D4]/50 bg-[#F5F5F3]/30"
+        />
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           {accounts.map((acc) => (

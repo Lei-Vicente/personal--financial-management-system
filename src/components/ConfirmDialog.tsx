@@ -62,7 +62,7 @@ export const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
             className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${
               isDestructive
                 ? 'bg-red-50 text-[#B91C1C] border border-red-200'
-                : 'bg-blue-50 text-[#2563EB] border border-blue-200'
+                : 'bg-[#F5F5F3] text-[#111111] border border-[#D9D9D4]'
             }`}
           >
             <AlertTriangle className="w-5 h-5" />
@@ -90,7 +90,7 @@ export const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
             type="button"
             onClick={onConfirm}
             className={`px-4 py-2 text-xs font-semibold rounded-xl text-white transition-all cursor-pointer shadow-xs active:scale-[0.98] ${
-              isDestructive ? 'bg-[#B91C1C] hover:bg-red-700' : 'bg-[#111111] hover:bg-[#2563EB]'
+              isDestructive ? 'bg-[#B91C1C] hover:bg-red-700' : 'bg-[#111111] hover:bg-[#333333]'
             }`}
           >
             {confirmLabel}

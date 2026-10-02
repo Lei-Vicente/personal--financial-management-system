@@ -109,7 +109,7 @@ export const AuthView: React.FC<AuthViewProps> = ({ onAuthSuccess }) => {
           {/* Quick Demo Option */}
           <div className="mb-6 p-3.5 bg-[#EBEBE7]/60 rounded-xl border border-[#D9D9D4] flex items-center justify-between">
             <div className="flex items-center space-x-2.5">
-              <Sparkles className="w-4 h-4 text-[#2563EB]" />
+              <Sparkles className="w-4 h-4 text-[#111111]" />
               <div className="text-left">
                 <p className="text-xs font-semibold text-[#111111]">Want to test instantly?</p>
                 <p className="text-[11px] text-[#6B6B67]">Pre-loaded with realistic balances & budgets</p>
@@ -120,7 +120,7 @@ export const AuthView: React.FC<AuthViewProps> = ({ onAuthSuccess }) => {
               type="button"
               onClick={handleDemoLogin}
               disabled={loading}
-              className="px-3 py-1.5 bg-[#111111] hover:bg-[#2563EB] text-white rounded-lg text-xs font-medium transition-colors shrink-0 cursor-pointer disabled:opacity-50"
+              className="px-3 py-1.5 bg-[#111111] hover:bg-[#333333] text-white rounded-lg text-xs font-medium transition-colors shrink-0 cursor-pointer disabled:opacity-50"
             >
               Explore Demo
             </button>
@@ -197,7 +197,7 @@ export const AuthView: React.FC<AuthViewProps> = ({ onAuthSuccess }) => {
                     <button
                       type="button"
                       onClick={() => { setMode('forgot'); setErrorMessage(null); }}
-                      className="text-xs text-[#2563EB] hover:underline font-medium cursor-pointer"
+                      className="text-xs text-[#111111] hover:underline font-medium cursor-pointer"
                     >
                       Forgot password?
                     </button>
@@ -247,7 +247,7 @@ export const AuthView: React.FC<AuthViewProps> = ({ onAuthSuccess }) => {
               id="auth-submit-btn"
               type="submit"
               disabled={loading}
-              className="w-full mt-2 py-3 px-4 bg-[#111111] hover:bg-[#2563EB] text-white rounded-xl text-sm font-semibold tracking-wide transition-all shadow-sm active:scale-[0.99] cursor-pointer flex items-center justify-center space-x-2 disabled:opacity-60"
+              className="w-full mt-2 py-3 px-4 bg-[#111111] hover:bg-[#333333] text-white rounded-xl text-sm font-semibold tracking-wide transition-all shadow-sm active:scale-[0.99] cursor-pointer flex items-center justify-center space-x-2 disabled:opacity-60"
             >
               <span>{loading ? 'Processing...' : mode === 'login' ? 'Sign In' : mode === 'register' ? 'Create Account' : 'Send Instructions'}</span>
               {!loading && <ArrowRight className="w-4 h-4" />}
@@ -263,7 +263,7 @@ export const AuthView: React.FC<AuthViewProps> = ({ onAuthSuccess }) => {
                   id="switch-to-register"
                   type="button"
                   onClick={() => { setMode('register'); setErrorMessage(null); setSuccessMessage(null); }}
-                  className="text-[#2563EB] font-semibold hover:underline cursor-pointer"
+                  className="text-[#111111] font-semibold hover:underline cursor-pointer"
                 >
                   Register now
                 </button>
@@ -275,7 +275,7 @@ export const AuthView: React.FC<AuthViewProps> = ({ onAuthSuccess }) => {
                   id="switch-to-login"
                   type="button"
                   onClick={() => { setMode('login'); setErrorMessage(null); setSuccessMessage(null); }}
-                  className="text-[#2563EB] font-semibold hover:underline cursor-pointer"
+                  className="text-[#111111] font-semibold hover:underline cursor-pointer"
                 >
                   Sign in
                 </button>

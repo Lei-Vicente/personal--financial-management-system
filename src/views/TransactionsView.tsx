@@ -11,14 +11,19 @@ import {
   X,
   RotateCcw
 } from 'lucide-react';
-import { User, Category, Transaction } from '../types.ts';
+import { User, Category, Transaction, Account } from '../types.ts';
 import { apiFetch, apiFetchFresh, apiFetchCached, getCachedData, formatMoney, downloadCsvFile , useDataVersion, notifyDataChanged } from '../utils.tsx';
+import { EmptyState } from '../components/EmptyState.tsx';
+import { ListSkeleton } from '../components/Skeletons.tsx';
 import { TransactionItem } from '../components/InteractiveCards.tsx';
 import { ConfirmDialog } from '../components/ConfirmDialog.tsx';
+import { CsvImportModal } from '../components/CsvImportModal.tsx';
+import { Upload } from 'lucide-react';
 
 interface TransactionsViewProps {
   user: User;
   categories: Category[];
+  accounts?: Account[];
   onOpenAddTransaction: (type?: 'INCOME' | 'EXPENSE' | 'TRANSFER') => void;
   onEditTransaction: (trans: Transaction) => void;
   initialFilter?: { type?: 'ALL' | 'INCOME' | 'EXPENSE' | 'TRANSFER'; categoryId?: string };
@@ -27,10 +32,12 @@ interface TransactionsViewProps {
 export const TransactionsView: React.FC<TransactionsViewProps> = ({
   user,
   categories,
+  accounts = [],
   onOpenAddTransaction,
   onEditTransaction,
   initialFilter,
 }) => {
+  const [isCsvModalOpen, setIsCsvModalOpen] = useState(false);
   const [transactions, setTransactions] = useState<Transaction[]>(() => getCachedData<any>('/api/transactions?page=1&limit=15')?.transactions || []);
   const [loading, setLoading] = useState(() => !getCachedData('/api/transactions?page=1&limit=15'));
   const [total, setTotal] = useState<number>(() => {
@@ -177,6 +184,13 @@ export const TransactionsView: React.FC<TransactionsViewProps> = ({
 
         <div className="flex items-center space-x-2.5">
           <button
+            onClick={() => setIsCsvModalOpen(true)}
+            className="px-3.5 py-2 bg-[#FFFFFF] border border-[#D9D9D4] hover:bg-[#EBEBE7] text-[#111111] rounded-xl text-xs font-semibold flex items-center space-x-1.5 transition-colors cursor-pointer shadow-xs"
+          >
+            <Upload className="w-3.5 h-3.5" />
+            <span>Import CSV</span>
+          </button>
+          <button
             id="export-csv-btn"
             onClick={handleExportCSV}
             className="px-3.5 py-2 bg-[#FFFFFF] border border-[#D9D9D4] hover:bg-[#EBEBE7] text-[#111111] rounded-xl text-xs font-semibold flex items-center space-x-1.5 transition-colors cursor-pointer shadow-xs"
@@ -188,7 +202,7 @@ export const TransactionsView: React.FC<TransactionsViewProps> = ({
           <button
             id="trans-record-btn"
             onClick={() => onOpenAddTransaction()}
-            className="px-4 py-2 bg-[#111111] hover:bg-[#2563EB] text-white rounded-xl text-xs font-semibold flex items-center space-x-1.5 transition-colors cursor-pointer shadow-xs"
+            className="px-4 py-2 bg-[#111111] hover:bg-[#333333] text-white rounded-xl text-xs font-semibold flex items-center space-x-1.5 transition-colors cursor-pointer shadow-xs"
           >
             <Plus className="w-3.5 h-3.5" />
             <span>Record Transaction</span>
@@ -329,55 +343,20 @@ export const TransactionsView: React.FC<TransactionsViewProps> = ({
       {/* Transaction List */}
       <div className="space-y-2">
         {loading && transactions.length === 0 ? (
-          <div className="space-y-2.5 animate-pulse">
-            {[1, 2, 3, 4, 5].map((i) => (
-              <div key={i} className="bg-white border border-[#D9D9D4] rounded-2xl p-4 flex items-center justify-between shadow-xs">
-                <div className="flex items-center space-x-3.5">
-                  <div className="w-10 h-10 rounded-xl bg-gray-200"></div>
-                  <div className="space-y-2">
-                    <div className="h-4 w-36 bg-gray-200 rounded"></div>
-                    <div className="h-3 w-24 bg-gray-100 rounded"></div>
-                  </div>
-                </div>
-                <div className="h-5 w-20 bg-gray-200 rounded"></div>
-              </div>
-            ))}
-          </div>
+          <ListSkeleton count={5} />
         ) : transactions.length === 0 ? (
-          <div className="bg-[#FFFFFF] border border-[#D9D9D4] rounded-2xl p-12 text-center space-y-4 shadow-xs">
-            <div className="w-12 h-12 rounded-2xl bg-[#EBEBE7] flex items-center justify-center mx-auto text-[#6B6B67]">
-              {hasActiveFilters ? <Filter className="w-6 h-6" /> : <Tag className="w-6 h-6" />}
-            </div>
-            <div>
-              <p className="text-sm font-bold text-[#111111]">
-                {hasActiveFilters ? 'No matching transactions found' : 'No transactions recorded yet'}
-              </p>
-              <p className="text-xs text-[#6B6B67] mt-1 max-w-sm mx-auto leading-relaxed">
-                {hasActiveFilters
-                  ? 'None of your records match the active filter criteria. Try adjusting or clearing your search and filters.'
-                  : 'Start tracking your financial cashflow by recording your first income, expense, or transfer.'}
-              </p>
-            </div>
-            {hasActiveFilters ? (
-              <button
-                type="button"
-                onClick={handleResetFilters}
-                className="px-4 py-2 bg-[#EBEBE7] hover:bg-[#D9D9D4] active:scale-[0.98] text-[#111111] rounded-xl text-xs font-semibold inline-flex items-center space-x-1.5 transition-all cursor-pointer"
-              >
-                <RotateCcw className="w-3.5 h-3.5" />
-                <span>Reset All Filters</span>
-              </button>
-            ) : (
-              <button
-                type="button"
-                onClick={() => onOpenAddTransaction()}
-                className="px-4 py-2 bg-[#111111] hover:bg-[#2563EB] active:scale-[0.98] text-white rounded-xl text-xs font-semibold inline-flex items-center space-x-1.5 transition-all cursor-pointer shadow-xs"
-              >
-                <Plus className="w-3.5 h-3.5" />
-                <span>Record Transaction</span>
-              </button>
-            )}
-          </div>
+          <EmptyState
+            icon={hasActiveFilters ? Filter : Tag}
+            title={hasActiveFilters ? 'No matching transactions found' : 'No transactions recorded yet'}
+            description={hasActiveFilters
+              ? 'None of your records match the active filter criteria. Try adjusting or clearing your search and filters.'
+              : 'Start tracking your financial cashflow by recording your first income, expense, or transfer.'}
+            actionLabel={hasActiveFilters ? undefined : 'Record Transaction'}
+            onAction={hasActiveFilters ? undefined : () => onOpenAddTransaction()}
+            secondaryActionLabel={hasActiveFilters ? 'Reset All Filters' : undefined}
+            onSecondaryAction={hasActiveFilters ? handleResetFilters : undefined}
+            secondaryIcon={hasActiveFilters ? RotateCcw : undefined}
+          />
         ) : (
           transactions.map((t) => (
             <TransactionItem
@@ -426,6 +405,13 @@ export const TransactionsView: React.FC<TransactionsViewProps> = ({
         isDestructive={confirmDialog.isDestructive}
         onConfirm={confirmDialog.onConfirm}
         onCancel={() => setConfirmDialog(prev => ({ ...prev, isOpen: false }))}
+      />
+
+      <CsvImportModal
+        isOpen={isCsvModalOpen}
+        onClose={() => setIsCsvModalOpen(false)}
+        accounts={accounts}
+        categories={categories}
       />
     </div>
   );

@@ -98,7 +98,7 @@ export const OnboardingView: React.FC<OnboardingViewProps> = ({ user, onComplete
           {step === 1 && (
             <div className="space-y-6 animate-fadeIn">
               <div className="text-center space-y-2">
-                <div className="inline-flex p-3 bg-blue-50 text-[#2563EB] rounded-2xl mb-1">
+                <div className="inline-flex p-3 bg-[#F5F5F3] text-[#111111] rounded-2xl mb-1">
                   <Wallet className="w-8 h-8" />
                 </div>
                 <h2 className="text-2xl font-bold text-[#111111] tracking-tight">
@@ -123,7 +123,7 @@ export const OnboardingView: React.FC<OnboardingViewProps> = ({ user, onComplete
                 id="onboarding-step1-btn"
                 type="button"
                 onClick={() => setStep(2)}
-                className="w-full py-3 px-4 bg-[#111111] hover:bg-[#2563EB] text-white rounded-xl text-sm font-semibold transition-all flex items-center justify-center space-x-2 cursor-pointer"
+                className="w-full py-3 px-4 bg-[#111111] hover:bg-[#333333] text-white rounded-xl text-sm font-semibold transition-all flex items-center justify-center space-x-2 cursor-pointer"
               >
                 <span>Continue Setup</span>
                 <ArrowRight className="w-4 h-4" />
@@ -195,7 +195,7 @@ export const OnboardingView: React.FC<OnboardingViewProps> = ({ user, onComplete
                   id="onboarding-step2-btn"
                   type="button"
                   onClick={() => setStep(3)}
-                  className="flex-1 py-3 px-4 bg-[#111111] hover:bg-[#2563EB] text-white rounded-xl text-sm font-semibold transition-all flex items-center justify-center space-x-2 cursor-pointer"
+                  className="flex-1 py-3 px-4 bg-[#111111] hover:bg-[#333333] text-white rounded-xl text-sm font-semibold transition-all flex items-center justify-center space-x-2 cursor-pointer"
                 >
                   <span>Continue to Categories</span>
                   <ArrowRight className="w-4 h-4" />
@@ -247,7 +247,7 @@ export const OnboardingView: React.FC<OnboardingViewProps> = ({ user, onComplete
                   id="onboarding-step3-btn"
                   type="button"
                   onClick={() => setStep(4)}
-                  className="flex-1 py-3 px-4 bg-[#111111] hover:bg-[#2563EB] text-white rounded-xl text-sm font-semibold transition-all flex items-center justify-center space-x-2 cursor-pointer"
+                  className="flex-1 py-3 px-4 bg-[#111111] hover:bg-[#333333] text-white rounded-xl text-sm font-semibold transition-all flex items-center justify-center space-x-2 cursor-pointer"
                 >
                   <span>Continue to Savings Goal</span>
                   <ArrowRight className="w-4 h-4" />
@@ -314,7 +314,7 @@ export const OnboardingView: React.FC<OnboardingViewProps> = ({ user, onComplete
                   type="button"
                   disabled={loading}
                   onClick={handleFinish}
-                  className="flex-1 py-3 px-4 bg-[#111111] hover:bg-[#2563EB] text-white rounded-xl text-sm font-semibold transition-all flex items-center justify-center space-x-2 cursor-pointer disabled:opacity-60"
+                  className="flex-1 py-3 px-4 bg-[#111111] hover:bg-[#333333] text-white rounded-xl text-sm font-semibold transition-all flex items-center justify-center space-x-2 cursor-pointer disabled:opacity-60"
                 >
                   <span>{loading ? 'Finalizing Setup...' : 'Complete & Open Dashboard'}</span>
                   <Check className="w-4 h-4" />

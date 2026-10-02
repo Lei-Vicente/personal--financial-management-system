@@ -423,3 +423,41 @@ transactionRouter.delete('/:id', async (req: AuthRequest, res: Response) => {
     return res.status(500).json({ error: 'Failed to delete transaction.' });
   }
 });
+
+// POST /api/transactions/bulk
+transactionRouter.post('/bulk', async (req: AuthRequest, res: Response) => {
+  try {
+    const userId = req.user!.id;
+    const { transactions } = req.body;
+    if (!transactions || !Array.isArray(transactions) || transactions.length === 0) {
+      return res.status(400).json({ error: 'Missing or empty transactions array.' });
+    }
+
+    let inserted = 0;
+    const stmt = db.prepare(`
+      INSERT INTO transactions (id, user_id, account_id, category_id, type, amount, date, description, payment_method, notes)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `);
+
+    for (const t of transactions) {
+      if (!t.amount || isNaN(Number(t.amount))) continue;
+      if (!t.type) continue;
+      if (!t.date) continue;
+      
+      const id = crypto.randomUUID();
+      const accId = t.account_id || null;
+      const catId = t.category_id || null;
+      const desc = t.description || 'Imported Transaction';
+      const method = t.payment_method || 'OTHER';
+      const notes = t.notes || '';
+      
+      await stmt.run(id, userId, accId, catId, t.type, Number(t.amount), t.date, desc, method, notes);
+      inserted++;
+    }
+
+    return res.json({ message: `Successfully imported ${inserted} transactions.`, count: inserted });
+  } catch (error: any) {
+    console.error('Bulk import error:', error);
+    return res.status(500).json({ error: 'Failed to import bulk transactions.' });
+  }
+});

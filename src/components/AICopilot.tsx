@@ -150,7 +150,7 @@ export const AICopilot: React.FC = () => {
                 <button
                   type="submit"
                   disabled={!input.trim() || isLoading}
-                  className="absolute right-1.5 top-1.5 bottom-1.5 w-9 rounded-lg bg-[#111111] hover:bg-[#2563EB] dark:bg-[#2563EB] dark:hover:bg-[#3B82F6] disabled:opacity-50 disabled:bg-[#D9D9D4] dark:disabled:bg-[#333330] text-white flex items-center justify-center transition-colors shadow-sm"
+                  className="absolute right-1.5 top-1.5 bottom-1.5 w-9 rounded-lg bg-[#111111] hover:bg-[#333333] dark:bg-[#2563EB] dark:hover:bg-[#3B82F6] disabled:opacity-50 disabled:bg-[#D9D9D4] dark:disabled:bg-[#333330] text-white flex items-center justify-center transition-colors shadow-sm"
                 >
                   <Send className="w-4 h-4" />
                 </button>

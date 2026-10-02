@@ -123,7 +123,7 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ user, categories }
               </button>
               <button
                 onClick={handleDownloadCSV}
-                className="px-3.5 py-2 bg-[#111111] hover:bg-[#2563EB] text-white rounded-xl text-xs font-semibold flex items-center space-x-1.5 transition-colors cursor-pointer shadow-xs"
+                className="px-3.5 py-2 bg-[#111111] hover:bg-[#333333] text-white rounded-xl text-xs font-semibold flex items-center space-x-1.5 transition-colors cursor-pointer shadow-xs"
               >
                 <Download className="w-3.5 h-3.5" />
                 <span>Export CSV</span>
@@ -331,7 +331,7 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ user, categories }
             {/* Document Header */}
             <div className="flex items-start justify-between border-b border-[#D9D9D4] pb-6">
               <div>
-                <span className="text-xs uppercase font-bold tracking-wider text-[#2563EB]">Financial Statement</span>
+                <span className="text-xs uppercase font-bold tracking-wider text-[#111111]">Financial Statement</span>
                 <h2 className="text-2xl font-black text-[#111111] mt-1">
                   {reportType === 'monthly' ? `Statement for ${selectedMonth}` : `Annual Statement ${selectedYear}`}
                 </h2>

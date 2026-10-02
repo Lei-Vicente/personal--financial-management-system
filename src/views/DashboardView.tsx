@@ -13,8 +13,11 @@ import {
 import { User, Category, Transaction, Budget, SavingsGoal, DashboardAnalytics, Bill, Account } from '../types.ts';
 import { apiFetch, apiFetchFresh, apiFetchCached, getCachedData, formatMoney, formatDate , useDataVersion, notifyDataChanged } from '../utils.tsx';
 import { BalanceCard, IncomeCard, ExpenseCard, BudgetCard, SavingsGoalCard, TransactionItem } from '../components/InteractiveCards.tsx';
+import { CashFlowChart } from '../components/CashFlowChart.tsx';
 import { WalletSection } from '../components/WalletSection.tsx';
 import { ConfirmDialog } from '../components/ConfirmDialog.tsx';
+import { EmptyState } from '../components/EmptyState.tsx';
+import { MetricCardSkeleton, ChartSkeleton, SectionSkeleton } from '../components/Skeletons.tsx';
 
 interface DashboardViewProps {
   user: User;
@@ -47,7 +50,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
 }) => {
   // Synchronous cache initialization for instantaneous 0ms rendering
   const [analytics, setAnalytics] = useState<DashboardAnalytics | null>(() => getCachedData('/api/analytics/dashboard'));
-  const [recentTransactions, setRecentTransactions] = useState<Transaction[]>(() => getCachedData<any>('/api/transactions?limit=6')?.transactions || []);
+  const [recentTransactions, setRecentTransactions] = useState<Transaction[]>(() => getCachedData<any>('/api/transactions?limit=30')?.transactions || []);
   const [budgets, setBudgets] = useState<Budget[]>(() => getCachedData<any>('/api/budgets')?.budgets || []);
   const [savingsGoals, setSavingsGoals] = useState<SavingsGoal[]>(() => getCachedData<any>('/api/savings-goals')?.goals || []);
   const [upcomingBills, setUpcomingBills] = useState<Bill[]>(() => getCachedData<any>('/api/bills?status=unpaid')?.bills || []);
@@ -68,7 +71,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           console.error('Failed to load dashboard analytics:', err);
           return null;
         }),
-        apiFetchFresh<any>('/api/transactions?limit=6').catch(() => ({ transactions: [] })),
+        apiFetchFresh<any>('/api/transactions?limit=30').catch(() => ({ transactions: [] })),
         apiFetchFresh<any>('/api/budgets').catch(() => ({ budgets: [] })),
         apiFetchFresh<any>('/api/savings-goals').catch(() => ({ goals: [] })),
         apiFetchFresh<any>('/api/bills?status=unpaid').catch(() => ({ bills: [] })),
@@ -170,31 +173,16 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
 
       {/* 2. Interactive Primary Metric Cards (Sections 11 & 12) */}
       {loading && !analytics ? (
-        <div className="space-y-8 animate-pulse">
+        <div className="space-y-8">
           <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4 sm:gap-5">
-            {[1, 2, 3].map((i) => (
-              <div key={i} className="bg-white border border-[#D9D9D4] rounded-2xl p-6 h-36 flex flex-col justify-between shadow-xs">
-                <div className="h-4 w-28 bg-gray-200 rounded"></div>
-                <div className="h-9 w-36 bg-gray-200 rounded"></div>
-                <div className="h-3.5 w-44 bg-gray-200 rounded"></div>
-              </div>
-            ))}
+            <MetricCardSkeleton />
+            <MetricCardSkeleton />
+            <MetricCardSkeleton />
           </div>
+          <ChartSkeleton />
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 sm:gap-6 min-w-0">
-            <div className="bg-white border border-[#D9D9D4] rounded-2xl p-6 h-64 shadow-xs">
-              <div className="h-5 w-36 bg-gray-200 rounded mb-4"></div>
-              <div className="space-y-3">
-                <div className="h-16 bg-gray-100 rounded-xl"></div>
-                <div className="h-16 bg-gray-100 rounded-xl"></div>
-              </div>
-            </div>
-            <div className="bg-white border border-[#D9D9D4] rounded-2xl p-6 h-64 shadow-xs">
-              <div className="h-5 w-36 bg-gray-200 rounded mb-4"></div>
-              <div className="space-y-3">
-                <div className="h-16 bg-gray-100 rounded-xl"></div>
-                <div className="h-16 bg-gray-100 rounded-xl"></div>
-              </div>
-            </div>
+            <SectionSkeleton count={3} />
+            <SectionSkeleton count={3} />
           </div>
         </div>
       ) : (
@@ -232,6 +220,11 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             highlightedAccountId={highlightedAccountId}
           />
 
+          {/* Cash Flow Chart */}
+          <div className="w-full">
+            <CashFlowChart transactions={recentTransactions} currency={user.currency} />
+          </div>
+
           {/* 3. Two-Column Dashboard Section: Budgets & Savings Goals */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 sm:gap-6 min-w-0">
         {/* Monthly Budgets */}
@@ -248,7 +241,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
 
                 <button
                   onClick={() => onNavigate('budgets')}
-                  className="text-xs text-[#2563EB] hover:underline font-semibold flex items-center space-x-1 cursor-pointer"
+                  className="text-xs text-[#111111] hover:underline font-semibold flex items-center space-x-1 cursor-pointer"
                 >
                   <span>View all</span>
                   <ArrowRight className="w-3.5 h-3.5" />
@@ -257,17 +250,14 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             </div>
 
             {budgets.length === 0 ? (
-              <div className="py-8 text-center space-y-3">
-                <p className="text-xs text-[#6B6B67]">
-                  Create a monthly budget to understand where your money is going.
-                </p>
-                <button
-                  onClick={onOpenAddBudget}
-                  className="px-3.5 py-2 bg-[#111111] hover:bg-[#2563EB] text-white rounded-xl text-xs font-semibold cursor-pointer"
-                >
-                  Create First Budget
-                </button>
-              </div>
+              <EmptyState
+                icon={PieChart}
+                title="No budgets created yet"
+                description="Create a monthly budget to understand where your money is going."
+                actionLabel="Create First Budget"
+                onAction={onOpenAddBudget}
+                className="shadow-none border-none bg-transparent py-6"
+              />
             ) : (
               <div className="space-y-3">
                 {budgets.slice(0, 3).map((b) => (
@@ -306,7 +296,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
               </div>
               <button
                 onClick={() => onNavigate('savings')}
-                className="text-xs text-[#2563EB] hover:underline font-semibold flex items-center space-x-1 cursor-pointer"
+                className="text-xs text-[#111111] hover:underline font-semibold flex items-center space-x-1 cursor-pointer"
               >
                 <span>View all</span>
                 <ArrowRight className="w-3.5 h-3.5" />
@@ -314,17 +304,13 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             </div>
 
             {savingsGoals.length === 0 ? (
-              <div className="py-8 text-center space-y-3">
-                <p className="text-xs text-[#6B6B67]">
-                  Set a target for an emergency fund, travel, or major purchase.
-                </p>
-                <button
-                  onClick={onOpenAddSavings}
-                  className="px-3.5 py-2 bg-[#15803D] hover:bg-[#111111] text-white rounded-xl text-xs font-semibold cursor-pointer"
-                >
-                  Create Savings Goal
-                </button>
-              </div>
+              <EmptyState
+                icon={PiggyBank}
+                title="No savings goals yet"
+                description="Set a target for an emergency fund, travel, or major purchase."
+                actionLabel="Create Savings Goal"
+                onAction={onOpenAddSavings}
+              />
             ) : (
               <div className="space-y-3">
                 {savingsGoals.slice(0, 2).map((g) => (
@@ -373,7 +359,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
 
             <button
               onClick={() => onNavigate('bills')}
-              className="text-xs text-[#2563EB] hover:underline font-semibold flex items-center space-x-1 cursor-pointer"
+              className="text-xs text-[#111111] hover:underline font-semibold flex items-center space-x-1 cursor-pointer"
             >
               <span>{upcomingBills.length > 0 ? 'Manage bills' : 'View bills'}</span>
               <ArrowRight className="w-3.5 h-3.5" />
@@ -382,18 +368,14 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         </div>
 
         {upcomingBills.length === 0 ? (
-          <div className="py-6 text-center space-y-2.5">
-            <p className="text-xs text-[#6B6B67]">
-              No pending bills or obligations due soon. Add your recurring subscriptions or utilities.
-            </p>
-            <button
-              onClick={onOpenAddBill || (() => onNavigate('bills'))}
-              className="px-3.5 py-1.5 bg-[#111111] hover:bg-[#2563EB] text-white rounded-xl text-xs font-semibold inline-flex items-center space-x-1.5 transition-colors cursor-pointer"
-            >
-              <Plus className="w-3.5 h-3.5" />
-              <span>Add Bill</span>
-            </button>
-          </div>
+          <EmptyState
+            icon={CalendarClock}
+            title="All Caught Up"
+            description="No pending bills or obligations due soon. Add your recurring subscriptions or utilities."
+            actionLabel="Add Bill"
+            onAction={onOpenAddBill || (() => onNavigate('bills'))}
+            className="shadow-none border-[#D9D9D4]/50 bg-[#F5F5F3]/30"
+          />
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5">
             {upcomingBills.slice(0, 3).map((bill) => {
@@ -419,7 +401,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                           ? 'bg-rose-100 text-rose-700'
                           : isDueToday
                           ? 'bg-amber-100 text-amber-800'
-                          : 'bg-blue-50 text-blue-700'
+                          : 'bg-[#F5F5F3] text-[#111111]'
                       }`}
                     >
                       {isOverdue ? `${Math.abs(daysUntil)}d Overdue` : isDueToday ? 'Due Today' : `In ${daysUntil}d`}
@@ -464,7 +446,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
 
           <button
             onClick={() => onNavigate('transactions')}
-            className="text-xs text-[#2563EB] hover:underline font-semibold flex items-center space-x-1 cursor-pointer"
+            className="text-xs text-[#111111] hover:underline font-semibold flex items-center space-x-1 cursor-pointer"
           >
             <span>View full ledger</span>
             <ArrowRight className="w-3.5 h-3.5" />
@@ -472,21 +454,16 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         </div>
 
         {recentTransactions.length === 0 ? (
-          <div className="py-12 text-center space-y-3">
-            <p className="text-sm font-semibold text-[#111111]">No transactions yet.</p>
-            <p className="text-xs text-[#6B6B67] max-w-sm mx-auto">
-              Add your first income or expense to start tracking your finances with precision.
-            </p>
-            <button
-              onClick={() => onOpenAddTransaction('EXPENSE')}
-              className="px-4 py-2 bg-[#111111] hover:bg-[#2563EB] text-white rounded-xl text-xs font-semibold cursor-pointer"
-            >
-              Record First Transaction
-            </button>
-          </div>
+          <EmptyState
+            icon={ArrowRightLeft}
+            title="No transactions yet"
+            description="Add your first income or expense to start tracking your finances with precision."
+            actionLabel="Record First Transaction"
+            onAction={() => onOpenAddTransaction('EXPENSE')}
+          />
         ) : (
           <div className="space-y-2">
-            {recentTransactions.map((t) => (
+            {recentTransactions.slice(0, 6).map((t) => (
               <TransactionItem
                 key={t.id}
                 transaction={t}

@@ -20,6 +20,7 @@ import { AddGoalModal, AddContributionModal } from './components/SavingsModal.ts
 import { BillModal } from './components/BillModal.tsx';
 import { AICopilot } from './components/AICopilot.tsx';
 import { AccountModal } from './components/AccountModal.tsx';
+import { CommandPalette } from './components/CommandPalette.tsx';
 
 export default function App() {
   // Ensure application remains in standard light mode and clean up any leftover theme data
@@ -195,6 +196,26 @@ export default function App() {
     setIsTransModalOpen(true);
   };
 
+  const handleCommandAction = (action: string) => {
+    switch (action) {
+      case 'ADD_TRANSACTION':
+        handleOpenAddTransaction();
+        break;
+      case 'ADD_BILL':
+        handleOpenAddBill();
+        break;
+      case 'ADD_BUDGET':
+        handleOpenAddBudget();
+        break;
+      case 'ADD_GOAL':
+        setIsAddGoalModalOpen(true);
+        break;
+      case 'ADD_WALLET':
+        handleOpenAddWallet();
+        break;
+    }
+  };
+
   // Loading initial state
   if (authChecking) {
     return (
@@ -280,6 +301,7 @@ export default function App() {
           <TransactionsView
             user={currentUser}
             categories={categories}
+            accounts={accounts}
             onOpenAddTransaction={handleOpenAddTransaction}
             onEditTransaction={handleEditTransaction}
             initialFilter={transactionFilter}
@@ -339,6 +361,9 @@ export default function App() {
                 </motion.div>
         </AnimatePresence>
       </main>
+
+      {/* COMMAND PALETTE */}
+      <CommandPalette onNavigate={setCurrentTab} onAction={handleCommandAction} />
 
       {/* MODALS */}
       {/* 1. Transaction Form Modal */}

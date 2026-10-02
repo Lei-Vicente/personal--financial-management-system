@@ -38,7 +38,7 @@ export const BalanceCard: React.FC<BalanceCardProps> = ({
   return (
     <div
       id="interactive-balance-card"
-      className="bg-[#FFFFFF] border border-[#D9D9D4] rounded-2xl p-6 flex flex-col justify-between h-full hover:border-[#111111]/40 hover:-translate-y-0.5 transition-all duration-200 shadow-xs"
+      className="bg-[#FFFFFF] border border-[#D9D9D4] rounded-2xl p-6 flex flex-col justify-between h-full shadow-xs premium-card"
     >
       <div className="flex items-center justify-between">
         <div className="flex items-center space-x-2">
@@ -96,13 +96,13 @@ export const IncomeCard: React.FC<IncomeCardProps> = ({ income, changePct, curre
           onClick();
         }
       }}
-      className="bg-[#FFFFFF] border border-[#D9D9D4] rounded-2xl p-6 flex flex-col justify-between h-full hover:border-[#15803D]/60 hover:-translate-y-0.5 transition-all duration-200 cursor-pointer shadow-xs focus:outline-none focus:ring-2 focus:ring-[#15803D]/30"
+      className="bg-[#FFFFFF] border border-[#D9D9D4] rounded-2xl p-6 flex flex-col justify-between h-full cursor-pointer shadow-xs focus:outline-none focus:ring-2 focus:ring-[#111111]/30 premium-card premium-interactive"
     >
       <div className="flex items-center justify-between">
         <span className="text-xs font-semibold uppercase tracking-wider text-[#6B6B67]">
           Income This Month
         </span>
-        <div className="w-8 h-8 rounded-xl bg-green-50 text-[#15803D] flex items-center justify-center">
+        <div className="w-8 h-8 rounded-xl bg-[#F5F5F3] text-[#111111] flex items-center justify-center">
           <ArrowUpRight className="w-4 h-4" />
         </div>
       </div>
@@ -115,7 +115,7 @@ export const IncomeCard: React.FC<IncomeCardProps> = ({ income, changePct, curre
           <span className={`text-xs font-semibold ${isUp ? 'text-[#15803D]' : 'text-[#B91C1C]'}`}>
             {isUp ? `+${changePct}%` : `${changePct}%`} from last month
           </span>
-          <span className="text-[11px] text-[#2563EB] font-medium hover:underline flex items-center">
+          <span className="text-[11px] text-[#111111] font-medium hover:underline flex items-center">
             View income &rarr;
           </span>
         </div>
@@ -154,13 +154,13 @@ export const ExpenseCard: React.FC<ExpenseCardProps> = ({
           onClick();
         }
       }}
-      className="bg-[#FFFFFF] border border-[#D9D9D4] rounded-2xl p-6 flex flex-col justify-between h-full hover:border-[#B91C1C]/60 hover:-translate-y-0.5 transition-all duration-200 cursor-pointer shadow-xs focus:outline-none focus:ring-2 focus:ring-[#B91C1C]/30"
+      className="bg-[#FFFFFF] border border-[#D9D9D4] rounded-2xl p-6 flex flex-col justify-between h-full cursor-pointer shadow-xs focus:outline-none focus:ring-2 focus:ring-[#111111]/30 premium-card premium-interactive"
     >
       <div className="flex items-center justify-between">
         <span className="text-xs font-semibold uppercase tracking-wider text-[#6B6B67]">
           Expenses This Month
         </span>
-        <div className="w-8 h-8 rounded-xl bg-red-50 text-[#B91C1C] flex items-center justify-center">
+        <div className="w-8 h-8 rounded-xl bg-[#F5F5F3] text-[#111111] flex items-center justify-center">
           <ArrowDownRight className="w-4 h-4" />
         </div>
       </div>
@@ -177,7 +177,7 @@ export const ExpenseCard: React.FC<ExpenseCardProps> = ({
           ) : (
             <span className="text-xs text-[#6B6B67]">No expenses recorded</span>
           )}
-          <span className="text-[11px] text-[#2563EB] font-medium hover:underline flex items-center">
+          <span className="text-[11px] text-[#111111] font-medium hover:underline flex items-center">
             View expenses &rarr;
           </span>
         </div>
@@ -226,8 +226,8 @@ export const BudgetCard: React.FC<BudgetCardProps> = ({ budget, currency, onView
           setIsExpanded(!isExpanded);
         }
       }}
-      className={`bg-[#FFFFFF] border rounded-2xl p-4 sm:p-5 transition-all duration-200 cursor-pointer shadow-xs focus:outline-none focus:ring-2 focus:ring-[#2563EB]/40 ${
-        isExpanded ? 'border-[#2563EB] shadow-md' : 'border-[#D9D9D4] hover:border-[#111111]/40'
+      className={`bg-[#FFFFFF] border rounded-2xl p-4 sm:p-5 cursor-pointer shadow-xs focus:outline-none focus:ring-2 focus:ring-[#111111]/40 premium-card group ${
+        isExpanded ? 'border-[#111111] shadow-md' : 'border-[#D9D9D4]'
       }`}
     >
       {/* Top row */}
@@ -235,7 +235,7 @@ export const BudgetCard: React.FC<BudgetCardProps> = ({ budget, currency, onView
         <div className="flex items-center space-x-2.5 min-w-0">
           <div
             className="w-8 h-8 rounded-xl flex items-center justify-center text-white shrink-0"
-            style={{ backgroundColor: budget.category_color || '#2563EB' }}
+            style={{ backgroundColor: '#111111' }}
           >
             {getCategoryIcon(budget.category_icon, 'w-4 h-4 text-white')}
           </div>
@@ -338,7 +338,7 @@ export const BudgetCard: React.FC<BudgetCardProps> = ({ budget, currency, onView
                 e.stopPropagation();
                 onViewCategory(budget.category_id);
               }}
-              className="w-full mt-1 py-1.5 text-xs text-[#2563EB] hover:text-[#111111] font-semibold text-center hover:bg-[#EBEBE7] rounded-lg transition-colors cursor-pointer"
+              className="w-full mt-1 py-1.5 text-xs text-[#111111] hover:text-[#111111] font-semibold text-center hover:bg-[#EBEBE7] rounded-lg transition-colors cursor-pointer"
             >
               View all transactions in {budget.category_name} &rarr;
             </button>
@@ -375,8 +375,8 @@ export const SavingsGoalCard: React.FC<SavingsGoalCardProps> = ({ goal, currency
           setIsExpanded(!isExpanded);
         }
       }}
-      className={`bg-[#FFFFFF] border rounded-2xl p-4 sm:p-5 transition-all duration-200 cursor-pointer shadow-xs focus:outline-none focus:ring-2 focus:ring-[#2563EB]/40 ${
-        isExpanded ? 'border-[#2563EB] shadow-md' : 'border-[#D9D9D4] hover:border-[#111111]/40'
+      className={`bg-[#FFFFFF] border rounded-2xl p-4 sm:p-5 cursor-pointer shadow-xs focus:outline-none focus:ring-2 focus:ring-[#111111]/40 premium-card group ${
+        isExpanded ? 'border-[#111111] shadow-md' : 'border-[#D9D9D4]'
       }`}
     >
       <div className="flex items-center justify-between gap-2">
@@ -469,7 +469,7 @@ export const SavingsGoalCard: React.FC<SavingsGoalCardProps> = ({ goal, currency
               e.stopPropagation();
               onAddContribution(goal);
             }}
-            className="w-full py-2 px-3 bg-[#111111] hover:bg-[#2563EB] text-white rounded-xl text-xs font-semibold flex items-center justify-center space-x-1.5 transition-colors cursor-pointer"
+            className="w-full py-2 px-3 bg-[#111111] hover:bg-[#333333] text-white rounded-xl text-xs font-semibold flex items-center justify-center space-x-1.5 transition-colors cursor-pointer"
           >
             <Plus className="w-3.5 h-3.5" />
             <span>Add Contribution</span>
@@ -513,17 +513,17 @@ export const TransactionItem: React.FC<TransactionItemProps> = ({
           setIsExpanded(!isExpanded);
         }
       }}
-      className={`border rounded-xl transition-all duration-150 cursor-pointer select-none focus:outline-none focus:ring-2 focus:ring-[#2563EB]/40 ${
+      className={`border rounded-xl cursor-pointer select-none focus:outline-none focus:ring-2 focus:ring-[#111111]/40 premium-card ${
         isExpanded
-          ? 'bg-[#FFFFFF] border-[#2563EB] shadow-sm'
-          : 'bg-[#FFFFFF] border-[#D9D9D4] hover:bg-[#EBEBE7]/40'
+          ? 'bg-[#FFFFFF] border-[#111111] shadow-sm'
+          : 'bg-[#FFFFFF] border-[#D9D9D4]'
       }`}
     >
       <div className="p-3.5 flex items-center justify-between">
         <div className="flex items-center space-x-3 min-w-0">
           <div
             className="w-9 h-9 rounded-xl flex items-center justify-center text-white shrink-0"
-            style={{ backgroundColor: isTransfer ? '#2563EB' : transaction.category_color || '#6B7280' }}
+            style={{ backgroundColor: '#111111' }}
           >
             {isTransfer ? (
               <ArrowRightLeft className="w-4 h-4 text-white" />
@@ -535,7 +535,7 @@ export const TransactionItem: React.FC<TransactionItemProps> = ({
             <p className="text-sm font-semibold text-[#111111] truncate">{transaction.description}</p>
             <div className="flex items-center space-x-2 text-[11px] text-[#6B6B67]">
               {isTransfer ? (
-                <span className="font-medium text-[#2563EB]">
+                <span className="font-medium text-[#111111]">
                   {transaction.account_name || 'Wallet'} &rarr; {transaction.to_account_name || 'Wallet'}
                 </span>
               ) : (
@@ -549,7 +549,7 @@ export const TransactionItem: React.FC<TransactionItemProps> = ({
 
         <div className="text-right shrink-0 ml-3">
           <span className={`text-sm font-bold tabular-nums block ${
-            isTransfer ? 'text-[#2563EB]' : isIncome ? 'text-[#15803D]' : 'text-[#111111]'
+            isTransfer ? 'text-[#111111]' : isIncome ? 'text-[#15803D]' : 'text-[#111111]'
           }`}>
             {isTransfer
               ? `⇄ ${formatMoney(transaction.amount, currency)}`
@@ -595,7 +595,7 @@ export const TransactionItem: React.FC<TransactionItemProps> = ({
                 e.stopPropagation();
                 onEdit(transaction);
               }}
-              className="px-3 py-1.5 bg-[#EBEBE7] hover:bg-[#D9D9D4] text-[#111111] rounded-lg text-xs font-medium flex items-center space-x-1 transition-colors cursor-pointer"
+              className="px-3 py-1.5 bg-[#EBEBE7] hover:bg-[#D9D9D4] text-[#111111] rounded-lg text-xs font-medium flex items-center space-x-1 cursor-pointer premium-interactive"
             >
               <Edit2 className="w-3.5 h-3.5" />
               <span>Edit</span>
@@ -606,7 +606,7 @@ export const TransactionItem: React.FC<TransactionItemProps> = ({
                 e.stopPropagation();
                 onDelete(transaction.id);
               }}
-              className="px-3 py-1.5 bg-red-50 hover:bg-red-100 text-[#B91C1C] rounded-lg text-xs font-medium flex items-center space-x-1 transition-colors cursor-pointer"
+              className="px-3 py-1.5 bg-[#111111] hover:bg-[#333333] text-white rounded-lg text-xs font-medium flex items-center space-x-1 cursor-pointer premium-interactive"
             >
               <Trash2 className="w-3.5 h-3.5" />
               <span>Delete</span>

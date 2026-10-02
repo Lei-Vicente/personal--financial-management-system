@@ -18,7 +18,6 @@ import {
   CalendarClock
 } from 'lucide-react';
 import { User } from '../types.ts';
-import { ThemeToggle } from './ThemeToggle.tsx';
 
 export type NavTab = 'dashboard' | 'transactions' | 'budgets' | 'savings' | 'bills' | 'analytics' | 'reports' | 'settings';
 
@@ -159,9 +158,7 @@ export const Navigation: React.FC<NavigationProps> = ({
                 </div>
               </div>
 
-               {/* Theme Toggle */}
-              <ThemeToggle />
-              {/* Settings & Profile Nav Action */}
+               {/* Settings & Profile Nav Action */}
               <button
                 id="profile-menu-settings-btn"
                 role="menuitem"
@@ -305,8 +302,6 @@ export const Navigation: React.FC<NavigationProps> = ({
                 Account & Preferences
               </div>
 
-              {/* Theme Toggle */}
-              <ThemeToggle className="px-4 py-3 text-sm" />
               {/* Settings Action */}
               <button
                 id="mobile-drawer-settings-btn"

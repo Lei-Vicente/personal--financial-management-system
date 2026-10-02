@@ -4,6 +4,8 @@ import { User, Category, Budget } from '../types.ts';
 import { apiFetch, apiFetchFresh, getCachedData, formatMoney , useDataVersion, notifyDataChanged } from '../utils.tsx';
 import { BudgetCard } from '../components/InteractiveCards.tsx';
 import { ConfirmDialog } from '../components/ConfirmDialog.tsx';
+import { EmptyState } from '../components/EmptyState.tsx';
+import { SectionSkeleton } from '../components/Skeletons.tsx';
 
 interface BudgetsViewProps {
   user: User;
@@ -111,7 +113,7 @@ export const BudgetsView: React.FC<BudgetsViewProps> = ({
 
           <button
             onClick={() => onOpenAddBudget(currentMonth)}
-            className="px-4 py-2 bg-[#111111] hover:bg-[#2563EB] text-white rounded-xl text-xs font-semibold flex items-center space-x-1.5 transition-colors cursor-pointer shadow-xs"
+            className="px-4 py-2 bg-[#111111] hover:bg-[#333333] text-white rounded-xl text-xs font-semibold flex items-center space-x-1.5 transition-colors cursor-pointer shadow-xs"
           >
             <Plus className="w-3.5 h-3.5" />
             <span>Set Budget</span>
@@ -186,37 +188,18 @@ export const BudgetsView: React.FC<BudgetsViewProps> = ({
         </h2>
 
         {loading && budgets.length === 0 ? (
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-5 animate-pulse">
-            {[1, 2, 3, 4].map((i) => (
-              <div key={i} className="bg-white border border-[#D9D9D4] rounded-2xl p-6 h-40 shadow-xs">
-                <div className="flex justify-between items-center mb-4">
-                  <div className="h-5 w-32 bg-gray-200 rounded"></div>
-                  <div className="h-5 w-16 bg-gray-200 rounded-full"></div>
-                </div>
-                <div className="h-8 w-40 bg-gray-200 rounded mb-4"></div>
-                <div className="h-2.5 bg-gray-100 rounded-full"></div>
-              </div>
-            ))}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-5 min-w-0">
+            <SectionSkeleton count={2} />
+            <SectionSkeleton count={2} />
           </div>
         ) : budgets.length === 0 ? (
-          <div className="bg-[#FFFFFF] border border-[#D9D9D4] rounded-2xl p-12 text-center space-y-4 shadow-xs">
-            <div className="w-12 h-12 rounded-2xl bg-[#EBEBE7] flex items-center justify-center mx-auto text-[#6B6B67]">
-              <PieChart className="w-6 h-6" />
-            </div>
-            <div>
-              <p className="text-sm font-bold text-[#111111]">No category budgets set for this month</p>
-              <p className="text-xs text-[#6B6B67] mt-1 max-w-sm mx-auto leading-relaxed">
-                Define spending limits for food, transport, bills, and utilities to ensure disciplined pacing and avoid month-end deficits.
-              </p>
-            </div>
-            <button
-              onClick={() => onOpenAddBudget(currentMonth)}
-              className="px-4 py-2 bg-[#111111] hover:bg-[#2563EB] active:scale-[0.98] text-white rounded-xl text-xs font-semibold inline-flex items-center space-x-1.5 transition-all cursor-pointer shadow-xs"
-            >
-              <Plus className="w-3.5 h-3.5" />
-              <span>Set First Budget</span>
-            </button>
-          </div>
+          <EmptyState
+            icon={PieChart}
+            title="No category budgets set for this month"
+            description="Define spending limits for food, transport, bills, and utilities to ensure disciplined pacing and avoid month-end deficits."
+            actionLabel="Set First Budget"
+            onAction={() => onOpenAddBudget(currentMonth)}
+          />
         ) : (
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-5 min-w-0">
             {budgets.map((b) => (

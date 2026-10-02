@@ -182,7 +182,7 @@ export const QuickBalanceModal: React.FC<QuickBalanceModalProps> = ({
               id="save-quick-balance-btn"
               type="submit"
               disabled={loading}
-              className="px-5 py-2 bg-[#111111] hover:bg-[#2563EB] text-white rounded-xl text-xs font-semibold flex items-center space-x-1.5 transition-colors cursor-pointer shadow-xs disabled:opacity-50"
+              className="px-5 py-2 bg-[#111111] hover:bg-[#333333] text-white rounded-xl text-xs font-semibold flex items-center space-x-1.5 transition-colors cursor-pointer shadow-xs disabled:opacity-50"
             >
               <Check className="w-3.5 h-3.5" />
               <span>{loading ? 'Updating...' : 'Save Savings Balance'}</span>

@@ -299,7 +299,7 @@ export const BillModal: React.FC<BillModalProps> = ({
             <button
               type="submit"
               disabled={loading}
-              className="py-2.5 px-5 bg-[#111111] hover:bg-[#2563EB] text-white text-xs font-semibold rounded-xl transition-all disabled:opacity-50 flex items-center space-x-2 cursor-pointer shadow-xs active:scale-[0.98]"
+              className="py-2.5 px-5 bg-[#111111] hover:bg-[#333333] text-white text-xs font-semibold rounded-xl transition-all disabled:opacity-50 flex items-center space-x-2 cursor-pointer shadow-xs active:scale-[0.98]"
             >
               {loading && <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />}
               <span>{billToEdit ? 'Save Changes' : 'Save Bill'}</span>

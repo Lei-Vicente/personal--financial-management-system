@@ -18,6 +18,9 @@ import { apiFetch, apiFetchFresh, apiFetchCached, getCachedData, formatMoney, fo
 import { BillModal } from '../components/BillModal.tsx';
 import { RecurringModal } from '../components/RecurringModal.tsx';
 import { ConfirmDialog } from '../components/ConfirmDialog.tsx';
+import { EmptyState } from '../components/EmptyState.tsx';
+import { ListSkeleton } from '../components/Skeletons.tsx';
+import { BillsCalendar } from '../components/BillsCalendar.tsx';
 
 interface BillsViewProps {
   user: User;
@@ -38,6 +41,17 @@ export const BillsView: React.FC<BillsViewProps> = ({
   const [bills, setBills] = useState<Bill[]>(() => getCachedData('/api/bills')?.bills || []);
   const [billSummary, setBillSummary] = useState<any>(() => getCachedData('/api/bills')?.summary || null);
   const [billsLoading, setBillsLoading] = useState(() => !getCachedData('/api/bills'));
+
+  const [selectedDate, setSelectedDate] = useState<Date | null>(null);
+
+  const visibleBills = selectedDate
+    ? bills.filter(b => {
+        if (!b.due_date) return false;
+        const d1 = new Date(b.due_date);
+        const d2 = selectedDate;
+        return d1.getFullYear() === d2.getFullYear() && d1.getMonth() === d2.getMonth() && d1.getDate() === d2.getDate();
+      })
+    : bills;
 
   // Recurring state
   const [recurringList, setRecurringList] = useState<RecurringTransaction[]>(() => getCachedData('/api/recurring-transactions')?.recurring_transactions || []);
@@ -243,7 +257,7 @@ export const BillsView: React.FC<BillsViewProps> = ({
                 setBillToEdit(null);
                 setBillModalOpen(true);
               }}
-              className="px-4 py-2 bg-[#111111] hover:bg-[#2563EB] text-white rounded-xl text-xs font-semibold flex items-center space-x-1.5 transition-colors cursor-pointer shadow-xs"
+              className="px-4 py-2 bg-[#111111] hover:bg-[#333333] text-white rounded-xl text-xs font-semibold flex items-center space-x-1.5 transition-colors cursor-pointer shadow-xs"
             >
               <Plus className="w-4 h-4" />
               <span>Add Bill</span>
@@ -254,7 +268,7 @@ export const BillsView: React.FC<BillsViewProps> = ({
                 setRecurringToEdit(null);
                 setRecurringModalOpen(true);
               }}
-              className="px-4 py-2 bg-[#111111] hover:bg-[#2563EB] text-white rounded-xl text-xs font-semibold flex items-center space-x-1.5 transition-colors cursor-pointer shadow-xs"
+              className="px-4 py-2 bg-[#111111] hover:bg-[#333333] text-white rounded-xl text-xs font-semibold flex items-center space-x-1.5 transition-colors cursor-pointer shadow-xs"
             >
               <Plus className="w-4 h-4" />
               <span>New Rule</span>
@@ -265,8 +279,8 @@ export const BillsView: React.FC<BillsViewProps> = ({
 
       {/* Operational Feedback Banners */}
       {processMessage && (
-        <div className="p-3.5 bg-blue-50 border border-blue-200 text-[#2563EB] rounded-2xl text-xs font-semibold flex items-center space-x-2 animate-fadeIn shadow-xs">
-          <Sparkles className="w-4 h-4 shrink-0 text-[#2563EB]" />
+        <div className="p-3.5 bg-[#F5F5F3] border border-[#D9D9D4] text-[#111111] rounded-2xl text-xs font-semibold flex items-center space-x-2 animate-fadeIn shadow-xs">
+          <Sparkles className="w-4 h-4 shrink-0 text-[#111111]" />
           <span>{processMessage}</span>
         </div>
       )}
@@ -312,90 +326,99 @@ export const BillsView: React.FC<BillsViewProps> = ({
             </div>
           </div>
 
-          {/* Filter Pills */}
-          <div className="flex items-center space-x-2">
-            {(['all', 'unpaid', 'paid'] as const).map((st) => (
-              <button
-                key={st}
-                onClick={() => setStatusFilter(st)}
-                className={`px-3 py-1.5 rounded-xl text-xs font-semibold capitalize transition-all cursor-pointer ${
-                  statusFilter === st
-                    ? 'bg-[#111111] text-white'
-                    : 'bg-[#FFFFFF] border border-[#D9D9D4] text-[#6B6B67] hover:text-[#111111]'
-                }`}
-              >
-                {st === 'all' ? 'All Bills' : st === 'unpaid' ? 'Pending Unpaid' : 'Completed Paid'}
-              </button>
-            ))}
-          </div>
+          {/* Calendar & List Layout */}
+          <div className="flex flex-col lg:flex-row gap-6 items-start">
+            {/* Calendar Sidebar */}
+            <div className="w-full lg:w-1/3 shrink-0 lg:sticky lg:top-4">
+              <BillsCalendar 
+                bills={bills} 
+                selectedDate={selectedDate} 
+                onSelectDate={setSelectedDate} 
+              />
+            </div>
 
-          {/* Bills List */}
-          <div className="space-y-3">
-            {billsLoading && bills.length === 0 ? (
-              <div className="py-12 text-center text-xs text-[#6B6B67]">Loading bills...</div>
-            ) : bills.length === 0 ? (
-              <div className="bg-[#FFFFFF] border border-[#D9D9D4] rounded-2xl p-12 text-center space-y-3">
-                <CalendarClock className="w-10 h-10 text-[#6B6B67] mx-auto opacity-50" />
-                <p className="text-sm font-semibold text-[#111111]">No bills found</p>
-                <p className="text-xs text-[#6B6B67]">Add your monthly utilities, rent, or loans to never miss a due date.</p>
-                <button
-                  onClick={() => setBillModalOpen(true)}
-                  className="px-4 py-2 bg-[#111111] hover:bg-[#2563EB] text-white text-xs font-semibold rounded-xl inline-flex items-center space-x-1.5 transition-colors cursor-pointer"
-                >
-                  <Plus className="w-4 h-4" />
-                  <span>Add First Bill</span>
-                </button>
+            {/* List Section */}
+            <div className="w-full lg:w-2/3 space-y-4">
+              {/* Filter Pills */}
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-2 flex-wrap gap-y-2">
+                  {(['all', 'unpaid', 'paid'] as const).map((st) => (
+                    <button
+                      key={st}
+                      onClick={() => setStatusFilter(st)}
+                      className={`px-3 py-1.5 rounded-xl text-xs font-semibold capitalize transition-all cursor-pointer ${
+                        statusFilter === st
+                          ? 'bg-[#111111] text-white'
+                          : 'bg-[#FFFFFF] border border-[#D9D9D4] text-[#6B6B67] hover:text-[#111111]'
+                      }`}
+                    >
+                      {st === 'all' ? 'All Bills' : st === 'unpaid' ? 'Pending Unpaid' : 'Completed Paid'}
+                    </button>
+                  ))}
+                </div>
+                {selectedDate && (
+                  <span className="text-[10px] font-bold text-[#B91C1C] uppercase tracking-wider bg-red-50 px-2 py-1 rounded-md">
+                    {selectedDate.toLocaleDateString()}
+                  </span>
+                )}
               </div>
-            ) : (
-              bills.map((bill) => (
+
+              {/* Bills List */}
+              <div className="space-y-3">
+                {billsLoading && visibleBills.length === 0 ? (
+                  <ListSkeleton count={4} />
+                ) : visibleBills.length === 0 ? (
+                  <EmptyState
+                    icon={CalendarClock}
+                    title={selectedDate ? 'No bills due on this date' : 'No bills found'}
+                    description="Add your monthly utilities, rent, or loans to never miss a due date."
+                    actionLabel="Add New Bill"
+                    onAction={() => setBillModalOpen(true)}
+                  />
+                ) : (
+                  visibleBills.map((bill) => (
                 <div
                   key={bill.id}
-                  className={`bg-[#FFFFFF] border rounded-2xl p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 transition-all shadow-xs ${
-                    bill.is_overdue
-                      ? 'border-[#B91C1C]/40 bg-red-50/10'
-                      : bill.is_due_soon
-                      ? 'border-[#D97706]/40 bg-amber-50/10'
-                      : 'border-[#D9D9D4]'
-                  }`}
+                  className={`bg-[#FFFFFF] border border-[#D9D9D4] rounded-2xl p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 shadow-xs premium-card group`}
                 >
                   <div className="flex items-start space-x-3.5 min-w-0">
                     <div
-                      className={`w-10 h-10 rounded-xl flex items-center justify-center text-white shrink-0 mt-0.5 ${
+                      className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 mt-0.5 border ${
                         bill.is_paid
-                          ? 'bg-[#15803D]'
+                          ? 'bg-[#F5F5F3] border-[#D9D9D4] text-[#6B6B67]'
                           : bill.is_overdue
-                          ? 'bg-[#B91C1C]'
-                          : 'bg-[#2563EB]'
+                          ? 'bg-[#111111] border-[#111111] text-white'
+                          : 'bg-[#111111] border-[#111111] text-white'
                       }`}
                     >
                       {bill.is_paid ? (
-                        <CheckCircle2 className="w-5 h-5 text-white" />
+                        <CheckCircle2 className="w-5 h-5" />
                       ) : bill.is_overdue ? (
-                        <AlertTriangle className="w-5 h-5 text-white" />
+                        <AlertTriangle className="w-5 h-5" />
                       ) : (
-                        <CalendarClock className="w-5 h-5 text-white" />
+                        <CalendarClock className="w-5 h-5" />
                       )}
                     </div>
 
                     <div className="min-w-0 space-y-1">
                       <div className="flex items-center space-x-2 flex-wrap">
                         <h3 className="text-sm font-bold text-[#111111] truncate">{bill.name}</h3>
-                        <span className="text-[10px] uppercase font-bold px-2 py-0.5 rounded-md bg-[#EBEBE7] text-[#6B6B67]">
+                        <span className="text-[10px] uppercase font-bold px-2 py-0.5 rounded-md bg-[#F5F5F3] border border-[#D9D9D4] text-[#6B6B67]">
                           {bill.frequency}
                         </span>
                         {bill.is_paid && (
-                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-green-100 text-[#15803D]">
+                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-[#F5F5F3] text-[#111111] border border-[#D9D9D4]">
                             Paid on {bill.paid_date ? formatDate(bill.paid_date) : 'Record'}
                           </span>
                         )}
                         {!bill.is_paid && bill.is_overdue && (
-                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-red-100 text-[#B91C1C]">
-                            Overdue by {Math.abs(bill.days_until_due || 0)} days
+                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-[#111111] text-white">
+                            Overdue by {Math.abs(bill.days_until_due || 0)} {Math.abs(bill.days_until_due || 0) === 1 ? 'day' : 'days'}
                           </span>
                         )}
                         {!bill.is_paid && bill.is_due_soon && !bill.is_overdue && (
-                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-amber-100 text-[#D97706]">
-                            Due in {bill.days_until_due} days
+                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-md border border-[#111111] text-[#111111]">
+                            Due in {bill.days_until_due} {bill.days_until_due === 1 ? 'day' : 'days'}
                           </span>
                         )}
                       </div>
@@ -431,7 +454,7 @@ export const BillsView: React.FC<BillsViewProps> = ({
                       {!bill.is_paid && (
                         <button
                           onClick={() => handlePayBill(bill)}
-                          className="px-3 py-1.5 bg-[#15803D] hover:bg-[#166534] active:scale-[0.98] text-white rounded-xl text-xs font-semibold flex items-center space-x-1 transition-all cursor-pointer shadow-xs shrink-0"
+                          className="px-3 py-1.5 bg-[#111111] hover:bg-[#333333] active:scale-[0.98] text-white rounded-xl text-xs font-semibold flex items-center space-x-1.5 transition-all cursor-pointer shadow-xs shrink-0"
                           title="Pay and record transaction"
                         >
                           <CheckCircle2 className="w-3.5 h-3.5" />
@@ -439,29 +462,33 @@ export const BillsView: React.FC<BillsViewProps> = ({
                         </button>
                       )}
 
-                      <button
-                        onClick={() => {
-                          setBillToEdit(bill);
-                          setBillModalOpen(true);
-                        }}
-                        className="p-2 text-[#6B6B67] hover:text-[#111111] hover:bg-[#EBEBE7] active:scale-[0.98] rounded-xl transition-all cursor-pointer shrink-0"
-                        title="Edit Bill"
-                      >
-                        <Edit2 className="w-4 h-4" />
-                      </button>
+                      <div className="flex items-center gap-1.5 sm:group-reveal-actions">
+                        <button
+                          onClick={() => {
+                            setBillToEdit(bill);
+                            setBillModalOpen(true);
+                          }}
+                          className="p-2 text-[#6B6B67] hover:text-[#111111] hover:bg-[#EBEBE7] rounded-xl premium-interactive cursor-pointer shrink-0"
+                          title="Edit Bill"
+                        >
+                          <Edit2 className="w-4 h-4" />
+                        </button>
 
-                      <button
-                        onClick={() => handleDeleteBill(bill)}
-                        className="p-2 text-[#6B6B67] hover:text-[#B91C1C] hover:bg-red-50 active:scale-[0.98] rounded-xl transition-all cursor-pointer shrink-0"
-                        title="Delete Bill"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
+                        <button
+                          onClick={() => handleDeleteBill(bill)}
+                          className="p-2 text-[#6B6B67] hover:text-[#B91C1C] hover:bg-red-50 rounded-xl premium-interactive cursor-pointer shrink-0"
+                          title="Delete Bill"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
                     </div>
                   </div>
                 </div>
               ))
             )}
+          </div>
+          </div>
           </div>
         </div>
       )}
@@ -475,7 +502,7 @@ export const BillsView: React.FC<BillsViewProps> = ({
           <div className="bg-[#FFFFFF] border border-[#D9D9D4] rounded-2xl p-5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 shadow-xs">
             <div className="space-y-1">
               <h2 className="text-sm font-bold text-[#111111] flex items-center space-x-2">
-                <Repeat className="w-4 h-4 text-[#2563EB]" />
+                <Repeat className="w-4 h-4 text-[#111111]" />
                 <span>Automatic Transaction Processor</span>
               </h2>
               <p className="text-xs text-[#6B6B67]">
@@ -498,7 +525,7 @@ export const BillsView: React.FC<BillsViewProps> = ({
           </div>
 
           {processMessage && (
-            <div className="p-3 bg-blue-50 border border-blue-200 rounded-xl text-xs font-medium text-[#2563EB] flex items-center space-x-2 animate-fadeIn">
+            <div className="p-3 bg-[#F5F5F3] border border-[#D9D9D4] rounded-xl text-xs font-medium text-[#111111] flex items-center space-x-2 animate-fadeIn">
               <Sparkles className="w-4 h-4 shrink-0" />
               <span>{processMessage}</span>
             </div>
@@ -507,46 +534,41 @@ export const BillsView: React.FC<BillsViewProps> = ({
           {/* Recurring List */}
           <div className="space-y-3">
             {recurringLoading && recurringList.length === 0 ? (
-              <div className="py-12 text-center text-xs text-[#6B6B67]">Loading recurring schedules...</div>
+              <ListSkeleton count={4} />
             ) : recurringList.length === 0 ? (
-              <div className="bg-[#FFFFFF] border border-[#D9D9D4] rounded-2xl p-12 text-center space-y-3">
-                <Repeat className="w-10 h-10 text-[#6B6B67] mx-auto opacity-50" />
-                <p className="text-sm font-semibold text-[#111111]">No recurring schedules setup</p>
-                <p className="text-xs text-[#6B6B67]">Create automated recurring rules for recurring salaries, memberships, or regular savings.</p>
-                <button
-                  onClick={() => setRecurringModalOpen(true)}
-                  className="px-4 py-2 bg-[#111111] hover:bg-[#2563EB] text-white text-xs font-semibold rounded-xl inline-flex items-center space-x-1.5 transition-colors cursor-pointer"
-                >
-                  <Plus className="w-4 h-4" />
-                  <span>Create First Rule</span>
-                </button>
-              </div>
+              <EmptyState
+                icon={Repeat}
+                title="No recurring schedules setup"
+                description="Create automated recurring rules for recurring salaries, memberships, or regular savings."
+                actionLabel="Create First Rule"
+                onAction={() => setRecurringModalOpen(true)}
+              />
             ) : (
               recurringList.map((rec) => (
                 <div
                   key={rec.id}
-                  className={`bg-[#FFFFFF] border rounded-2xl p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 transition-all shadow-xs ${
+                  className={`bg-[#FFFFFF] border rounded-2xl p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 shadow-xs premium-card group ${
                     rec.is_active ? 'border-[#D9D9D4]' : 'border-[#D9D9D4]/60 opacity-60'
                   }`}
                 >
                   <div className="flex items-start space-x-3.5 min-w-0">
                     <div
-                      className={`w-10 h-10 rounded-xl flex items-center justify-center text-white shrink-0 mt-0.5 ${
-                        rec.type === 'INCOME' ? 'bg-[#15803D]' : 'bg-[#B91C1C]'
+                      className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 mt-0.5 border ${
+                        rec.type === 'INCOME' ? 'bg-[#111111] border-[#111111] text-white' : 'bg-[#111111] border-[#111111] text-white'
                       }`}
                     >
-                      <Repeat className="w-5 h-5 text-white" />
+                      <Repeat className="w-5 h-5" />
                     </div>
 
                     <div className="min-w-0 space-y-1">
                       <div className="flex items-center space-x-2 flex-wrap">
                         <h3 className="text-sm font-bold text-[#111111] truncate">{rec.description}</h3>
-                        <span className="text-[10px] uppercase font-bold px-2 py-0.5 rounded-md bg-[#EBEBE7] text-[#6B6B67]">
+                        <span className="text-[10px] uppercase font-bold px-2 py-0.5 rounded-md bg-[#F5F5F3] border border-[#D9D9D4] text-[#6B6B67]">
                           {rec.frequency}
                         </span>
                         <span
                           className={`text-[10px] font-bold px-2 py-0.5 rounded-md ${
-                            rec.is_active ? 'bg-green-100 text-[#15803D]' : 'bg-gray-100 text-[#6B6B67]'
+                            rec.is_active ? 'bg-[#111111] text-white' : 'bg-[#F5F5F3] border border-[#D9D9D4] text-[#6B6B67]'
                           }`}
                         >
                           {rec.is_active ? 'Active' : 'Paused'}
@@ -592,24 +614,26 @@ export const BillsView: React.FC<BillsViewProps> = ({
                         {rec.is_active ? 'Pause' : 'Resume'}
                       </button>
 
-                      <button
-                        onClick={() => {
-                          setRecurringToEdit(rec);
-                          setRecurringModalOpen(true);
-                        }}
-                        className="p-2 text-[#6B6B67] hover:text-[#111111] hover:bg-[#EBEBE7] rounded-xl transition-colors cursor-pointer shrink-0"
-                        title="Edit Schedule"
-                      >
-                        <Edit2 className="w-4 h-4" />
-                      </button>
+                      <div className="flex items-center gap-1.5 sm:group-reveal-actions">
+                        <button
+                          onClick={() => {
+                            setRecurringToEdit(rec);
+                            setRecurringModalOpen(true);
+                          }}
+                          className="p-2 text-[#6B6B67] hover:text-[#111111] hover:bg-[#EBEBE7] rounded-xl premium-interactive cursor-pointer shrink-0"
+                          title="Edit Schedule"
+                        >
+                          <Edit2 className="w-4 h-4" />
+                        </button>
 
-                      <button
-                        onClick={() => handleDeleteRecurring(rec)}
-                        className="p-2 text-[#6B6B67] hover:text-[#B91C1C] hover:bg-red-50 active:scale-[0.98] rounded-xl transition-all cursor-pointer shrink-0"
-                        title="Delete Schedule"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
+                        <button
+                          onClick={() => handleDeleteRecurring(rec)}
+                          className="p-2 text-[#6B6B67] hover:text-[#B91C1C] hover:bg-red-50 rounded-xl premium-interactive cursor-pointer shrink-0"
+                          title="Delete Schedule"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
                     </div>
                   </div>
                 </div>
