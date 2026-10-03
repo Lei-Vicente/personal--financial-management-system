@@ -17,6 +17,13 @@ pg.types.setTypeParser(20, (val: string) => parseInt(val, 10));
 const rawDatabaseUrl = process.env.DATABASE_URL || '';
 export const isPostgres = rawDatabaseUrl.startsWith('postgres://') || rawDatabaseUrl.startsWith('postgresql://');
 
+// Vercel functions have no durable local filesystem. Refuse to fall back to
+// SQLite there so a missing or malformed DATABASE_URL cannot appear to save
+// wallets during one invocation and lose them on the next.
+if (process.env.VERCEL && !isPostgres) {
+  throw new Error('DATABASE_URL must be a PostgreSQL connection URL when deployed to Vercel.');
+}
+
 let pgPool: pg.Pool | null = null;
 let sqliteDb: any = null;
 

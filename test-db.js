@@ -3,19 +3,18 @@ import pg from 'pg';
 const { Pool } = pg;
 
 async function checkData() {
+  const url = process.env.DATABASE_URL.replace(':5432/', ':6543/');
+  console.log('Testing 6543 URL:', url.replace(/:[^:@]+@/, ':***@'));
   const pool = new Pool({
-    connectionString: process.env.DATABASE_URL,
+    connectionString: url,
     ssl: { rejectUnauthorized: false }
   });
 
   try {
     const users = await pool.query('SELECT id, email FROM users');
-    console.log('Users in Supabase:', users.rows);
-    
-    const accounts = await pool.query('SELECT id, name, user_id FROM accounts');
-    console.log('Accounts in Supabase:', accounts.rows);
+    console.log('Users in Supabase:', users.rows.length);
   } catch (err) {
-    console.error('Error:', err.message);
+    console.error('Error on 6543:', err.message);
   } finally {
     await pool.end();
   }

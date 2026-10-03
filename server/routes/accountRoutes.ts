@@ -1,6 +1,6 @@
 import { Router, Response } from 'express';
 import crypto from 'node:crypto';
-import { db, seedDefaultAccount, SQL_NET_ACTIVITY_SUBQUERY } from '../db.ts';
+import { db, SQL_NET_ACTIVITY_SUBQUERY } from '../db.ts';
 import { requireAuth, AuthRequest } from '../auth.ts';
 
 export const accountRouter = Router();
@@ -19,17 +19,11 @@ accountRouter.get('/', async (req: AuthRequest, res: Response) => {
       ORDER BY a.is_default DESC, a.created_at ASC
     `).all(userId) as any[];
 
-    // If no accounts exist yet, automatically seed Philippine wallet defaults
-    if (rows.length === 0) {
-      await seedDefaultAccount(userId);
-      rows = await db.prepare(`
-        SELECT a.*,
-          ${SQL_NET_ACTIVITY_SUBQUERY} as net_activity
-        FROM accounts a
-        WHERE a.user_id = ?
-        ORDER BY a.is_default DESC, a.created_at ASC
-      `).all(userId) as any[];
-    } else if (rows.length === 1 && rows[0].name === 'Cash Wallet') {
+    // Accounts are seeded during registration. Do not seed from a read route:
+    // simultaneous first-load requests can otherwise each see zero rows and
+    // create duplicate default wallets. Users with no accounts receive the
+    // normal empty state and can add one explicitly.
+    if (rows.length === 1 && rows[0].name === 'Cash Wallet') {
       // Upgrade single legacy 'Cash Wallet' into full suite: Cash on-hand, GCash, GoTyme Bank, Landbank
       await db.prepare('UPDATE accounts SET name = ?, icon = ? WHERE id = ?').run('Cash on-hand', 'Banknote', rows[0].id);
       const now = new Date().toISOString();
