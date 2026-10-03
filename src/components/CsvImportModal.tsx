@@ -1,5 +1,6 @@
 import React, { useState, useRef } from 'react';
 import Papa from 'papaparse';
+import { motion, AnimatePresence } from 'motion/react';
 import { X, UploadCloud, AlertCircle, FileSpreadsheet, ArrowRight, CheckCircle2 } from 'lucide-react';
 import { Account, Category } from '../types.ts';
 import { apiFetch, notifyDataChanged } from '../utils.tsx';
@@ -33,8 +34,6 @@ export const CsvImportModal: React.FC<CsvImportModalProps> = ({ isOpen, onClose,
   const [importedCount, setImportedCount] = useState(0);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
-
-  if (!isOpen) return null;
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -139,12 +138,24 @@ export const CsvImportModal: React.FC<CsvImportModalProps> = ({ isOpen, onClose,
   };
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-      <div 
-        className="absolute inset-0 bg-black/60 backdrop-blur-sm animate-fadeIn"
-        onClick={() => step !== 'SUCCESS' && onClose()}
-      />
-      <div className="relative w-full max-w-xl bg-[#FFFFFF] rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh] animate-slideUp">
+    <AnimatePresence>
+      {isOpen && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+            onClick={() => step !== 'SUCCESS' && onClose()}
+          />
+          <motion.div 
+            initial={{ opacity: 0, scale: 0.95, y: 10 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.95, y: 10 }}
+            transition={{ type: "tween", ease: "easeOut", duration: 0.2 }}
+            className="relative w-full max-w-xl bg-[#FFFFFF] rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]"
+          >
         
         {/* Header */}
         <div className="flex items-center justify-between p-5 sm:p-6 border-b border-[#D9D9D4]">
@@ -159,7 +170,7 @@ export const CsvImportModal: React.FC<CsvImportModalProps> = ({ isOpen, onClose,
           </div>
           <button 
             onClick={onClose}
-            className="p-2 text-[#6B6B67] hover:bg-[#F5F5F3] hover:text-[#111111] rounded-xl transition-colors cursor-pointer"
+            className="p-2 text-[#6B6B67] hover:bg-[#EBEBE7] hover:text-[#111111] rounded-xl transition-colors cursor-pointer"
           >
             <X className="w-5 h-5" />
           </button>
@@ -286,7 +297,7 @@ export const CsvImportModal: React.FC<CsvImportModalProps> = ({ isOpen, onClose,
             <>
               <button 
                 onClick={step === 'MAP' ? reset : onClose}
-                className="px-5 py-2.5 bg-[#FFFFFF] hover:bg-[#F5F5F3] border border-[#D9D9D4] text-[#111111] rounded-xl text-sm font-semibold transition-colors"
+                className="px-5 py-2.5 bg-[#FFFFFF] hover:bg-[#EBEBE7] border border-[#D9D9D4] text-[#111111] rounded-xl text-sm font-semibold transition-colors"
                 disabled={loading}
               >
                 {step === 'MAP' ? 'Back' : 'Cancel'}
@@ -306,7 +317,9 @@ export const CsvImportModal: React.FC<CsvImportModalProps> = ({ isOpen, onClose,
           )}
         </div>
 
-      </div>
-    </div>
+          </motion.div>
+        </div>
+      )}
+    </AnimatePresence>
   );
 };

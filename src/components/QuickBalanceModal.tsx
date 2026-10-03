@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { motion, AnimatePresence } from 'motion/react';
 import { X, Check, ArrowRight, ShieldCheck, Wallet } from 'lucide-react';
 import { Account } from '../types.ts';
 import { apiFetch, CURRENCY_MAP, formatMoney, getAccountIcon } from '../utils.tsx';
@@ -30,7 +31,7 @@ export const QuickBalanceModal: React.FC<QuickBalanceModalProps> = ({
     }
   }, [account, isOpen]);
 
-  if (!isOpen || !account) return null;
+  if (!account) return null;
 
   const currencySymbol = CURRENCY_MAP[currency]?.symbol || '₱';
   const currentVal = Number(account.current_balance ?? account.balance ?? 0);
@@ -72,8 +73,25 @@ export const QuickBalanceModal: React.FC<QuickBalanceModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#111111]/50 backdrop-blur-xs animate-fadeIn">
-      <div className="bg-[#FFFFFF] border border-[#D9D9D4] rounded-2xl w-full max-w-md shadow-xl overflow-hidden animate-scaleUp">
+    <AnimatePresence>
+      {isOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            className="absolute inset-0 bg-[#111111]/50 backdrop-blur-xs"
+            onClick={onClose}
+          />
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95, y: 10 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.95, y: 10 }}
+            transition={{ type: "tween", ease: "easeOut", duration: 0.2 }}
+            className="bg-[#FFFFFF] border border-[#D9D9D4] rounded-2xl w-full max-w-md shadow-xl overflow-hidden relative z-10"
+            onClick={(e) => e.stopPropagation()}
+          >
         {/* Top Header */}
         <div className="p-5 border-b border-[#D9D9D4] flex items-center justify-between">
           <div className="flex items-center space-x-3">
@@ -189,7 +207,9 @@ export const QuickBalanceModal: React.FC<QuickBalanceModalProps> = ({
             </button>
           </div>
         </form>
-      </div>
-    </div>
+          </motion.div>
+        </div>
+      )}
+    </AnimatePresence>
   );
 };

@@ -104,7 +104,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({ onNavigate, onAc
                     <button
                       key={cmd.id}
                       onClick={() => executeCommand(cmd)}
-                      className="w-full flex items-center px-3 py-2.5 rounded-xl hover:bg-[#F5F5F3] hover:text-[#111111] text-[#6B6B67] transition-colors cursor-pointer text-left group"
+                      className="w-full flex items-center px-3 py-2.5 rounded-xl hover:bg-[#EBEBE7] hover:text-[#111111] text-[#6B6B67] transition-colors cursor-pointer text-left group"
                     >
                       <div className="w-6 h-6 rounded-lg bg-[#EBEBE7] group-hover:bg-[#FFFFFF] group-hover:shadow-xs flex items-center justify-center shrink-0 transition-all mr-3 text-[#111111]">
                         {cmd.icon}

@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { motion } from 'motion/react';
 import {
   LayoutDashboard,
   Receipt,
@@ -112,20 +113,28 @@ export const Navigation: React.FC<NavigationProps> = ({
           {navItems.map((item) => {
             const isActive = currentTab === item.id || (item.id === 'analytics' && currentTab === 'reports');
             return (
-              <button
-                key={item.id}
-                id={`nav-link-${item.id}`}
-                onClick={() => handleNavClick(item.id)}
-                className={`w-full flex items-center space-x-3 px-3.5 py-2.5 rounded-xl text-sm font-medium transition-colors cursor-pointer ${
-                  isActive
-                    ? 'bg-[#111111] text-white shadow-sm'
-                    : 'text-[#6B6B67] dark:text-[#A1A19D] hover:text-[#111111] dark:hover:text-[#F5F5F3] hover:bg-[#EBEBE7]/70 dark:hover:bg-[#2A2A28]'
-                }`}
-                title={isCollapsed ? item.label : undefined}
-              >
-                <span className={`shrink-0 ${isActive ? 'text-white' : 'text-[#6B6B67] dark:text-[#A1A19D]'}`}>{item.icon}</span>
-                <span className={`whitespace-nowrap transition-opacity duration-300 ${isCollapsed ? 'opacity-0 group-hover:opacity-100' : 'opacity-100'}`}>{item.label}</span>
-              </button>
+              <div key={item.id} className="relative">
+                {isActive && (
+                  <motion.div
+                    layoutId="desktop-nav-active-pill"
+                    className="absolute inset-0 bg-[#111111] dark:bg-[#F5F5F3] rounded-xl shadow-sm z-0"
+                    transition={{ type: "spring", stiffness: 350, damping: 25 }}
+                  />
+                )}
+                <button
+                  id={`nav-link-${item.id}`}
+                  onClick={() => handleNavClick(item.id)}
+                  className={`relative z-10 w-full flex items-center space-x-3 px-3.5 py-2.5 rounded-xl text-sm font-medium transition-colors cursor-pointer ${
+                    isActive
+                      ? 'text-white dark:text-[#111111]'
+                      : 'text-[#6B6B67] dark:text-[#A1A19D] hover:text-[#111111] dark:hover:text-[#F5F5F3] hover:bg-[#EBEBE7]/70 dark:hover:bg-[#2A2A28]'
+                  }`}
+                  title={isCollapsed ? item.label : undefined}
+                >
+                  <span className={`shrink-0 transition-colors ${isActive ? 'text-white dark:text-[#111111]' : 'text-[#6B6B67] dark:text-[#A1A19D] group-hover:text-[#111111] dark:group-hover:text-[#F5F5F3]'}`}>{item.icon}</span>
+                  <span className={`whitespace-nowrap transition-opacity duration-300 ${isCollapsed ? 'opacity-0 group-hover:opacity-100' : 'opacity-100'}`}>{item.label}</span>
+                </button>
+              </div>
             );
           })}
         </nav>
@@ -280,20 +289,31 @@ export const Navigation: React.FC<NavigationProps> = ({
               <div className="px-3 pb-1 text-[11px] font-semibold tracking-wider uppercase text-[#6B6B67] dark:text-[#A1A19D]">
                 Core Modules
               </div>
-              {navItems.map((item) => (
-                <button
-                  key={item.id}
-                  onClick={() => handleNavClick(item.id)}
-                  className={`w-full flex items-center space-x-3 px-4 py-3 rounded-xl text-sm font-medium ${
-                    currentTab === item.id || (item.id === 'analytics' && currentTab === 'reports')
-                      ? 'bg-[#111111] text-white'
-                      : 'text-[#111111] dark:text-[#E8E8E6] hover:bg-[#EBEBE7] dark:hover:bg-[#2A2A28]'
-                  }`}
-                >
-                  <span>{item.icon}</span>
-                  <span>{item.label}</span>
-                </button>
-              ))}
+              {navItems.map((item) => {
+                const isActive = currentTab === item.id || (item.id === 'analytics' && currentTab === 'reports');
+                return (
+                  <div key={item.id} className="relative">
+                    {isActive && (
+                      <motion.div
+                        layoutId="mobile-nav-active-pill"
+                        className="absolute inset-0 bg-[#111111] dark:bg-[#F5F5F3] rounded-xl shadow-sm z-0"
+                        transition={{ type: "spring", stiffness: 350, damping: 25 }}
+                      />
+                    )}
+                    <button
+                      onClick={() => handleNavClick(item.id)}
+                      className={`relative z-10 w-full flex items-center space-x-3 px-4 py-3 rounded-xl text-sm font-medium ${
+                        isActive
+                          ? 'text-white dark:text-[#111111]'
+                          : 'text-[#111111] dark:text-[#E8E8E6] hover:bg-[#EBEBE7] dark:hover:bg-[#2A2A28]'
+                      }`}
+                    >
+                      <span className={`transition-colors ${isActive ? 'text-white dark:text-[#111111]' : ''}`}>{item.icon}</span>
+                      <span>{item.label}</span>
+                    </button>
+                  </div>
+                );
+              })}
             </div>
 
             {/* Account & Preferences section */}

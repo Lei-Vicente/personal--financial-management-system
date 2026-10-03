@@ -18,6 +18,20 @@ import { WalletSection } from '../components/WalletSection.tsx';
 import { ConfirmDialog } from '../components/ConfirmDialog.tsx';
 import { EmptyState } from '../components/EmptyState.tsx';
 import { MetricCardSkeleton, ChartSkeleton, SectionSkeleton } from '../components/Skeletons.tsx';
+import { motion } from 'motion/react';
+
+const containerVariants: any = {
+  hidden: { opacity: 0 },
+  show: {
+    opacity: 1,
+    transition: { staggerChildren: 0.08 }
+  }
+};
+
+const itemVariants: any = {
+  hidden: { opacity: 0, y: 15 },
+  show: { opacity: 1, y: 0, transition: { type: "tween", ease: "easeOut", duration: 0.4 } }
+};
 
 interface DashboardViewProps {
   user: User;
@@ -157,9 +171,14 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   };
 
   return (
-    <div className="space-y-8 animate-fadeIn pb-16">
+    <div className="space-y-8 pb-16">
       {/* 1. Header & Greeting with Intentional Action Hierarchy */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+      <motion.div 
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.4, ease: "easeOut" }}
+        className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4"
+      >
         <div>
           <h1 className="text-2xl sm:text-3xl font-extrabold text-[#111111] tracking-tight">
             {getGreeting()}, {user.full_name.split(' ')[0]}
@@ -168,8 +187,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             Here’s your financial overview and real-time cashflow status.
           </p>
         </div>
-
-      </div>
+      </motion.div>
 
       {/* 2. Interactive Primary Metric Cards (Sections 11 & 12) */}
       {loading && !analytics ? (
@@ -186,8 +204,8 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           </div>
         </div>
       ) : (
-        <>
-          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4 sm:gap-5">
+        <motion.div variants={containerVariants} initial="hidden" animate="show" className="space-y-8">
+          <motion.div variants={itemVariants} className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4 sm:gap-5">
             <BalanceCard
               totalBalance={analytics?.balance?.total_balance || 0}
               changePct={analytics?.balance?.change_pct || 0}
@@ -208,10 +226,11 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
               currency={user.currency}
               onClick={() => onNavigate('transactions', { type: 'EXPENSE', categoryId: 'ALL' })}
             />
-          </div>
+          </motion.div>
 
           {/* Wallets & Liquid Savings Cards (Landbank, GoTyme, GCash, Cash on-hand, etc.) */}
-          <WalletSection
+          <motion.div variants={itemVariants}>
+            <WalletSection
             user={user}
             
             
@@ -219,14 +238,15 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             accounts={accounts}
             highlightedAccountId={highlightedAccountId}
           />
+          </motion.div>
 
           {/* Cash Flow Chart */}
-          <div className="w-full">
+          <motion.div variants={itemVariants} className="w-full">
             <CashFlowChart transactions={recentTransactions} currency={user.currency} />
-          </div>
+          </motion.div>
 
           {/* 3. Two-Column Dashboard Section: Budgets & Savings Goals */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 sm:gap-6 min-w-0">
+          <motion.div variants={itemVariants} className="grid grid-cols-1 lg:grid-cols-2 gap-5 sm:gap-6 min-w-0">
         {/* Monthly Budgets */}
         <div className="bg-[#FFFFFF] border border-[#D9D9D4] rounded-2xl p-5 sm:p-6 shadow-xs flex flex-col justify-between min-w-0">
           <div>
@@ -275,10 +295,12 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             <div className="pt-4 mt-4 border-t border-[#D9D9D4]/40">
               <button
                 onClick={onOpenAddBudget}
-                className="w-full py-2 bg-[#EBEBE7] hover:bg-[#D9D9D4] text-[#111111] rounded-xl text-xs font-semibold flex items-center justify-center space-x-1.5 transition-colors cursor-pointer"
+                className="w-full group/btn relative overflow-hidden py-2.5 bg-[#F5F5F3] dark:bg-[#2A2A28] border border-[#D9D9D4] dark:border-[#333330] rounded-xl transition-all hover:bg-[#111111] dark:hover:bg-white hover:border-[#111111] dark:hover:border-white cursor-pointer active:scale-[0.98]"
               >
-                <Plus className="w-3.5 h-3.5" />
-                <span>Add Another Category Budget</span>
+                <div className="relative z-10 flex items-center justify-center space-x-1.5 text-[#111111] dark:text-[#F5F5F3] group-hover/btn:text-white dark:group-hover/btn:text-[#111111]">
+                  <Plus className="w-3.5 h-3.5" />
+                  <span className="text-xs font-semibold">Add Another Category Budget</span>
+                </div>
               </button>
             </div>
           )}
@@ -310,6 +332,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                 description="Set a target for an emergency fund, travel, or major purchase."
                 actionLabel="Create Savings Goal"
                 onAction={onOpenAddSavings}
+                className="shadow-none border-none bg-transparent py-6"
               />
             ) : (
               <div className="space-y-3">
@@ -329,18 +352,20 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             <div className="pt-4 mt-4 border-t border-[#D9D9D4]/40">
               <button
                 onClick={onOpenAddSavings}
-                className="w-full py-2 bg-[#EBEBE7] hover:bg-[#D9D9D4] text-[#111111] rounded-xl text-xs font-semibold flex items-center justify-center space-x-1.5 transition-colors cursor-pointer"
+                className="w-full group/btn relative overflow-hidden py-2.5 bg-[#F5F5F3] dark:bg-[#2A2A28] border border-[#D9D9D4] dark:border-[#333330] rounded-xl transition-all hover:bg-[#111111] dark:hover:bg-white hover:border-[#111111] dark:hover:border-white cursor-pointer active:scale-[0.98]"
               >
-                <Plus className="w-3.5 h-3.5" />
-                <span>Create New Goal</span>
+                <div className="relative z-10 flex items-center justify-center space-x-1.5 text-[#111111] dark:text-[#F5F5F3] group-hover/btn:text-white dark:group-hover/btn:text-[#111111]">
+                  <Plus className="w-3.5 h-3.5" />
+                  <span className="text-xs font-semibold">Create New Goal</span>
+                </div>
               </button>
             </div>
           )}
         </div>
-      </div>
+      </motion.div>
 
       {/* 4. Upcoming Bills & Commitments */}
-      <div className="bg-[#FFFFFF] border border-[#D9D9D4] rounded-2xl p-5 sm:p-6 shadow-xs">
+      <motion.div variants={itemVariants} className="bg-[#FFFFFF] border border-[#D9D9D4] rounded-2xl p-5 sm:p-6 shadow-xs">
         <div className="flex items-center justify-between pb-4 border-b border-[#D9D9D4]/60 mb-4">
           <div className="flex items-center space-x-2">
             <div className="w-7 h-7 rounded-lg bg-[#111111] text-white flex items-center justify-center">
@@ -374,7 +399,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             description="No pending bills or obligations due soon. Add your recurring subscriptions or utilities."
             actionLabel="Add Bill"
             onAction={onOpenAddBill || (() => onNavigate('bills'))}
-            className="shadow-none border-[#D9D9D4]/50 bg-[#F5F5F3]/30"
+            className="shadow-none border-none bg-transparent py-6"
           />
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5">
@@ -425,10 +450,10 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             })}
           </div>
         )}
-      </div>
+      </motion.div>
 
       {/* 5. Recent Transactions Ledger (Section 13) */}
-      <div className="bg-[#FFFFFF] border border-[#D9D9D4] rounded-2xl p-6 shadow-xs">
+      <motion.div variants={itemVariants} className="bg-[#FFFFFF] border border-[#D9D9D4] rounded-2xl p-6 shadow-xs">
         <div className="flex items-center justify-between pb-4 border-b border-[#D9D9D4]/60 mb-4">
           <div>
             <div className="flex items-center space-x-2">
@@ -460,6 +485,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             description="Add your first income or expense to start tracking your finances with precision."
             actionLabel="Record First Transaction"
             onAction={() => onOpenAddTransaction('EXPENSE')}
+            className="shadow-none border-none bg-transparent py-6"
           />
         ) : (
           <div className="space-y-2">
@@ -474,8 +500,8 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             ))}
           </div>
         )}
-      </div>
-        </>
+      </motion.div>
+        </motion.div>
       )}
       {/* Confirm Action Dialog */}
       <ConfirmDialog

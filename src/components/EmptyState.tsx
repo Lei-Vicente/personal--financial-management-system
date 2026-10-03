@@ -48,7 +48,7 @@ export const EmptyState: React.FC<EmptyStateProps> = ({
           <button
             type="button"
             onClick={onSecondaryAction}
-            className="px-5 py-2.5 bg-[#FFFFFF] border border-[#D9D9D4] hover:bg-[#F5F5F3] text-[#111111] rounded-xl text-sm font-semibold transition-all cursor-pointer active:scale-[0.98] premium-interactive flex items-center gap-2 shadow-xs"
+            className="px-5 py-2.5 bg-[#FFFFFF] border border-[#D9D9D4] hover:bg-[#EBEBE7] text-[#111111] rounded-xl text-sm font-semibold transition-all cursor-pointer active:scale-[0.98] premium-interactive flex items-center gap-2 shadow-xs"
           >
             {SecondaryIcon && <SecondaryIcon className="w-4 h-4" />}
             {secondaryActionLabel}

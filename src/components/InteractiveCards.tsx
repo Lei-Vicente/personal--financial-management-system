@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 import { Budget, SavingsGoal, Transaction } from '../types.ts';
 import { formatMoney, formatDate, getCategoryIcon } from '../utils.tsx';
+import { motion, AnimatePresence } from 'motion/react';
 
 // ==========================================
 // 1. BALANCE CARD (Expandable)
@@ -36,9 +37,10 @@ export const BalanceCard: React.FC<BalanceCardProps> = ({
   const isPositive = changePct >= 0;
 
   return (
-    <div
+    <motion.div
+      whileHover={{ y: -4, transition: { duration: 0.2, ease: "easeOut" } }}
       id="interactive-balance-card"
-      className="bg-[#FFFFFF] border border-[#D9D9D4] rounded-2xl p-6 flex flex-col justify-between h-full shadow-xs premium-card"
+      className="bg-[#FFFFFF] border border-[#D9D9D4] hover:border-[#111111]/30 rounded-2xl p-6 flex flex-col justify-between h-full shadow-xs hover:shadow-md transition-all duration-300 premium-card"
     >
       <div className="flex items-center justify-between">
         <div className="flex items-center space-x-2">
@@ -67,7 +69,7 @@ export const BalanceCard: React.FC<BalanceCardProps> = ({
           </span>
         </div>
       </div>
-    </div>
+    </motion.div>
   );
 };
 
@@ -85,7 +87,8 @@ export const IncomeCard: React.FC<IncomeCardProps> = ({ income, changePct, curre
   const isUp = changePct >= 0;
 
   return (
-    <div
+    <motion.div
+      whileHover={{ y: -4, transition: { duration: 0.2, ease: "easeOut" } }}
       id="interactive-income-card"
       tabIndex={0}
       role="button"
@@ -96,7 +99,7 @@ export const IncomeCard: React.FC<IncomeCardProps> = ({ income, changePct, curre
           onClick();
         }
       }}
-      className="bg-[#FFFFFF] border border-[#D9D9D4] rounded-2xl p-6 flex flex-col justify-between h-full cursor-pointer shadow-xs focus:outline-none focus:ring-2 focus:ring-[#111111]/30 premium-card premium-interactive"
+      className="bg-[#FFFFFF] border border-[#D9D9D4] hover:border-[#111111]/30 rounded-2xl p-6 flex flex-col justify-between h-full cursor-pointer shadow-xs hover:shadow-md transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-[#111111]/30 premium-card premium-interactive"
     >
       <div className="flex items-center justify-between">
         <span className="text-xs font-semibold uppercase tracking-wider text-[#6B6B67]">
@@ -120,7 +123,7 @@ export const IncomeCard: React.FC<IncomeCardProps> = ({ income, changePct, curre
           </span>
         </div>
       </div>
-    </div>
+    </motion.div>
   );
 };
 
@@ -143,7 +146,8 @@ export const ExpenseCard: React.FC<ExpenseCardProps> = ({
   onClick,
 }) => {
   return (
-    <div
+    <motion.div
+      whileHover={{ y: -4, transition: { duration: 0.2, ease: "easeOut" } }}
       id="interactive-expense-card"
       tabIndex={0}
       role="button"
@@ -154,7 +158,7 @@ export const ExpenseCard: React.FC<ExpenseCardProps> = ({
           onClick();
         }
       }}
-      className="bg-[#FFFFFF] border border-[#D9D9D4] rounded-2xl p-6 flex flex-col justify-between h-full cursor-pointer shadow-xs focus:outline-none focus:ring-2 focus:ring-[#111111]/30 premium-card premium-interactive"
+      className="bg-[#FFFFFF] border border-[#D9D9D4] hover:border-[#111111]/30 rounded-2xl p-6 flex flex-col justify-between h-full cursor-pointer shadow-xs hover:shadow-md transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-[#111111]/30 premium-card premium-interactive"
     >
       <div className="flex items-center justify-between">
         <span className="text-xs font-semibold uppercase tracking-wider text-[#6B6B67]">
@@ -182,7 +186,7 @@ export const ExpenseCard: React.FC<ExpenseCardProps> = ({
           </span>
         </div>
       </div>
-    </div>
+    </motion.div>
   );
 };
 
@@ -214,7 +218,8 @@ export const BudgetCard: React.FC<BudgetCardProps> = ({ budget, currency, onView
   }
 
   return (
-    <div
+    <motion.div
+      whileHover={{ y: -4, transition: { duration: 0.2, ease: "easeOut" } }}
       id={`budget-card-${budget.id}`}
       tabIndex={0}
       role="button"
@@ -226,8 +231,8 @@ export const BudgetCard: React.FC<BudgetCardProps> = ({ budget, currency, onView
           setIsExpanded(!isExpanded);
         }
       }}
-      className={`bg-[#FFFFFF] border rounded-2xl p-4 sm:p-5 cursor-pointer shadow-xs focus:outline-none focus:ring-2 focus:ring-[#111111]/40 premium-card group ${
-        isExpanded ? 'border-[#111111] shadow-md' : 'border-[#D9D9D4]'
+      className={`bg-[#FFFFFF] border rounded-2xl p-4 sm:p-5 cursor-pointer shadow-xs focus:outline-none focus:ring-2 focus:ring-[#111111]/40 premium-card group overflow-hidden ${
+        isExpanded ? 'border-[#111111] shadow-md' : 'border-[#D9D9D4] hover:shadow-md'
       }`}
     >
       {/* Top row */}
@@ -270,9 +275,11 @@ export const BudgetCard: React.FC<BudgetCardProps> = ({ budget, currency, onView
 
       {/* Progress bar */}
       <div className="mt-3 w-full bg-[#EBEBE7] rounded-full h-2 overflow-hidden">
-        <div
-          className={`h-full rounded-full transition-all duration-300 ${progressColor}`}
-          style={{ width: `${Math.min(100, budget.percentage)}%` }}
+        <motion.div
+          initial={{ width: 0 }}
+          animate={{ width: `${Math.min(100, budget.percentage)}%` }}
+          transition={{ duration: 1, ease: "easeOut" }}
+          className={`h-full rounded-full ${progressColor}`}
         />
       </div>
 
@@ -285,8 +292,16 @@ export const BudgetCard: React.FC<BudgetCardProps> = ({ budget, currency, onView
       )}
 
       {/* Expanded details */}
-      {isExpanded && (
-        <div className="mt-4 pt-4 border-t border-[#D9D9D4] space-y-3 animate-fadeIn">
+      <AnimatePresence initial={false}>
+        {isExpanded && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: "auto", opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ type: "tween", ease: "easeInOut", duration: 0.2 }}
+            className="overflow-hidden"
+          >
+            <div className="mt-4 pt-4 border-t border-[#D9D9D4] space-y-3">
           <div className="flex flex-wrap gap-2.5 sm:gap-3 text-xs">
             <div className="p-2.5 bg-[#EBEBE7]/50 rounded-xl flex-1 min-w-[120px]">
               <span className="text-[#6B6B67] block">Remaining Budget</span>
@@ -343,9 +358,11 @@ export const BudgetCard: React.FC<BudgetCardProps> = ({ budget, currency, onView
               View all transactions in {budget.category_name} &rarr;
             </button>
           )}
-        </div>
-      )}
-    </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </motion.div>
   );
 };
 
@@ -363,7 +380,8 @@ export const SavingsGoalCard: React.FC<SavingsGoalCardProps> = ({ goal, currency
   const [isExpanded, setIsExpanded] = useState(false);
 
   return (
-    <div
+    <motion.div
+      whileHover={{ y: -4, transition: { duration: 0.2, ease: "easeOut" } }}
       id={`savings-card-${goal.id}`}
       tabIndex={0}
       role="button"
@@ -375,8 +393,8 @@ export const SavingsGoalCard: React.FC<SavingsGoalCardProps> = ({ goal, currency
           setIsExpanded(!isExpanded);
         }
       }}
-      className={`bg-[#FFFFFF] border rounded-2xl p-4 sm:p-5 cursor-pointer shadow-xs focus:outline-none focus:ring-2 focus:ring-[#111111]/40 premium-card group ${
-        isExpanded ? 'border-[#111111] shadow-md' : 'border-[#D9D9D4]'
+      className={`bg-[#FFFFFF] border rounded-2xl p-4 sm:p-5 cursor-pointer shadow-xs focus:outline-none focus:ring-2 focus:ring-[#111111]/40 premium-card group overflow-hidden ${
+        isExpanded ? 'border-[#111111] shadow-md' : 'border-[#D9D9D4] hover:shadow-md'
       }`}
     >
       <div className="flex items-center justify-between gap-2">
@@ -409,15 +427,25 @@ export const SavingsGoalCard: React.FC<SavingsGoalCardProps> = ({ goal, currency
 
       {/* Progress bar */}
       <div className="mt-3 w-full bg-[#EBEBE7] rounded-full h-2.5 overflow-hidden">
-        <div
-          className="h-full rounded-full bg-[#15803D] transition-all duration-300"
-          style={{ width: `${Math.min(100, goal.percentage)}%` }}
+        <motion.div
+          initial={{ width: 0 }}
+          animate={{ width: `${Math.min(100, goal.percentage)}%` }}
+          transition={{ duration: 1, ease: "easeOut", delay: 0.1 }}
+          className="h-full rounded-full bg-[#15803D]"
         />
       </div>
 
       {/* Expanded details */}
-      {isExpanded && (
-        <div className="mt-4 pt-4 border-t border-[#D9D9D4] space-y-3 animate-fadeIn">
+      <AnimatePresence initial={false}>
+        {isExpanded && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: "auto", opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ type: "tween", ease: "easeInOut", duration: 0.2 }}
+            className="overflow-hidden"
+          >
+            <div className="mt-4 pt-4 border-t border-[#D9D9D4] space-y-3">
           <div className="flex flex-wrap gap-2.5 sm:gap-3 text-xs">
             <div className="p-2.5 bg-[#EBEBE7]/50 rounded-xl flex-1 min-w-[120px]">
               <span className="text-[#6B6B67] block">Remaining Needed</span>
@@ -474,9 +502,11 @@ export const SavingsGoalCard: React.FC<SavingsGoalCardProps> = ({ goal, currency
             <Plus className="w-3.5 h-3.5" />
             <span>Add Contribution</span>
           </button>
-        </div>
-      )}
-    </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </motion.div>
   );
 };
 
@@ -501,7 +531,7 @@ export const TransactionItem: React.FC<TransactionItemProps> = ({
   const isTransfer = transaction.type === 'TRANSFER';
 
   return (
-    <div
+    <motion.div
       id={`transaction-item-${transaction.id}`}
       tabIndex={0}
       role="button"
@@ -513,7 +543,7 @@ export const TransactionItem: React.FC<TransactionItemProps> = ({
           setIsExpanded(!isExpanded);
         }
       }}
-      className={`border rounded-xl cursor-pointer select-none focus:outline-none focus:ring-2 focus:ring-[#111111]/40 premium-card ${
+      className={`border rounded-xl cursor-pointer select-none focus:outline-none focus:ring-2 focus:ring-[#111111]/40 premium-card overflow-hidden ${
         isExpanded
           ? 'bg-[#FFFFFF] border-[#111111] shadow-sm'
           : 'bg-[#FFFFFF] border-[#D9D9D4]'
@@ -564,8 +594,16 @@ export const TransactionItem: React.FC<TransactionItemProps> = ({
       </div>
 
       {/* Expanded progressive disclosure panel */}
-      {isExpanded && (
-        <div className="px-4 pb-3.5 pt-2 border-t border-[#D9D9D4]/60 bg-[#EBEBE7]/20 text-xs animate-fadeIn">
+      <AnimatePresence initial={false}>
+        {isExpanded && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: "auto", opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ type: "tween", ease: "easeInOut", duration: 0.2 }}
+            className="overflow-hidden"
+          >
+            <div className="px-4 pb-3.5 pt-2 border-t border-[#D9D9D4]/60 bg-[#EBEBE7]/20 text-xs">
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 mb-3">
             <div>
               <span className="text-[10px] text-[#6B6B67] uppercase font-semibold">Payment Method</span>
@@ -612,8 +650,10 @@ export const TransactionItem: React.FC<TransactionItemProps> = ({
               <span>Delete</span>
             </button>
           </div>
-        </div>
-      )}
-    </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </motion.div>
   );
 };

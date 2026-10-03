@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { motion, AnimatePresence } from 'motion/react';
 import { X, Check, Trash2, Sparkles, Building2, Landmark, Smartphone, Banknote, Coins, Wallet, CreditCard, PiggyBank, Shield, Zap } from 'lucide-react';
 import { Account } from '../types.ts';
 import { apiFetch, CURRENCY_MAP, formatMoney, getAccountIcon } from '../utils.tsx';
@@ -97,8 +98,6 @@ export const AccountModal: React.FC<AccountModalProps> = ({
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isOpen, onClose, confirmDeleteOpen]);
-
-  if (!isOpen) return null;
 
   const currencySymbol = CURRENCY_MAP[currency]?.symbol || '₱';
 
@@ -208,16 +207,30 @@ export const AccountModal: React.FC<AccountModalProps> = ({
   };
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#111111]/50 backdrop-blur-xs animate-fadeIn"
-      role="dialog"
-      aria-modal="true"
-      onClick={onClose}
-    >
-      <div
-        className="bg-[#FFFFFF] border border-[#D9D9D4] rounded-2xl w-full max-w-lg shadow-xl overflow-hidden animate-scaleUp max-h-[90vh] flex flex-col"
-        onClick={(e) => e.stopPropagation()}
-      >
+    <>
+      <AnimatePresence>
+        {isOpen && (
+          <div
+            className="fixed inset-0 z-50 flex items-center justify-center p-4"
+            role="dialog"
+            aria-modal="true"
+          >
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.2 }}
+              className="absolute inset-0 bg-[#111111]/50 backdrop-blur-xs"
+              onClick={onClose}
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 10 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 10 }}
+              transition={{ type: "tween", ease: "easeOut", duration: 0.2 }}
+              className="bg-[#FFFFFF] border border-[#D9D9D4] rounded-2xl w-full max-w-lg shadow-xl overflow-hidden max-h-[90vh] flex flex-col relative z-10"
+              onClick={(e) => e.stopPropagation()}
+            >
         {/* Header */}
         <div className="p-5 border-b border-[#D9D9D4] flex items-center justify-between shrink-0">
           <div>
@@ -438,7 +451,10 @@ export const AccountModal: React.FC<AccountModalProps> = ({
             </div>
           </div>
         </form>
-      </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
 
       {/* Delete Confirmation Dialog */}
       {accountToEdit && (
@@ -452,6 +468,6 @@ export const AccountModal: React.FC<AccountModalProps> = ({
           onCancel={() => setConfirmDeleteOpen(false)}
         />
       )}
-    </div>
+    </>
   );
 };

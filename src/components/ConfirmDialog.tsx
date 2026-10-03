@@ -1,4 +1,5 @@
 import React, { useEffect, useRef } from 'react';
+import { motion, AnimatePresence } from 'motion/react';
 import { AlertTriangle } from 'lucide-react';
 
 export interface ConfirmDialogProps {
@@ -42,21 +43,32 @@ export const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
     };
   }, [isOpen, onCancel]);
 
-  if (!isOpen) return null;
-
   return (
-    <div
-      className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4 animate-fadeIn"
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="confirm-dialog-title"
-      aria-describedby="confirm-dialog-desc"
-      onClick={onCancel}
-    >
-      <div
-        className="bg-[#FFFFFF] border border-[#D9D9D4] rounded-2xl w-full max-w-md shadow-xl overflow-hidden p-6 space-y-4"
-        onClick={(e) => e.stopPropagation()}
-      >
+    <AnimatePresence>
+      {isOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="confirm-dialog-title"
+          aria-describedby="confirm-dialog-desc"
+        >
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            className="absolute inset-0 bg-black/50 backdrop-blur-xs"
+            onClick={onCancel}
+          />
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95, y: 10 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.95, y: 10 }}
+            transition={{ type: "tween", ease: "easeOut", duration: 0.2 }}
+            className="bg-[#FFFFFF] border border-[#D9D9D4] rounded-2xl w-full max-w-md shadow-xl overflow-hidden p-6 space-y-4 relative z-10"
+            onClick={(e) => e.stopPropagation()}
+          >
         <div className="flex items-start space-x-3.5">
           <div
             className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${
@@ -96,7 +108,9 @@ export const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
             {confirmLabel}
           </button>
         </div>
-      </div>
-    </div>
+          </motion.div>
+        </div>
+      )}
+    </AnimatePresence>
   );
 };
